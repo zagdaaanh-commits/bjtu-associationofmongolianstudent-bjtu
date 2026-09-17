@@ -112,23 +112,23 @@ create policy "Allow public delete submissions" on public.submissions for delete
 
 -- 4. STORAGE BUCKET CONFIGURATION FOR TEAM PHOTOS
 insert into storage.buckets (id, name, public)
-values ('team-photos', 'team-photos', true)
+values ('TEAM-PHOTO', 'TEAM-PHOTO', true)
 on conflict (id) do nothing;
 
-drop policy if exists "Allow public uploads to team-photos" on storage.objects;
-create policy "Allow public uploads to team-photos"
+drop policy if exists "Allow public uploads to TEAM-PHOTO" on storage.objects;
+create policy "Allow public uploads to TEAM-PHOTO"
 on storage.objects for insert
-with check (bucket_id = 'team-photos');
+with check (bucket_id = 'TEAM-PHOTO');
 
-drop policy if exists "Allow public read of team-photos" on storage.objects;
-create policy "Allow public read of team-photos"
+drop policy if exists "Allow public read of TEAM-PHOTO" on storage.objects;
+create policy "Allow public read of TEAM-PHOTO"
 on storage.objects for select
-using (bucket_id = 'team-photos');
+using (bucket_id = 'TEAM-PHOTO');
 
-drop policy if exists "Allow public update of team-photos" on storage.objects;
-create policy "Allow public update of team-photos"
+drop policy if exists "Allow public update of TEAM-PHOTO" on storage.objects;
+create policy "Allow public update of TEAM-PHOTO"
 on storage.objects for update
-using (bucket_id = 'team-photos');
+using (bucket_id = 'TEAM-PHOTO');
 
 -- 5. SEED DATA FOR HAIDIAN PARK (海淀公园) CHECKPOINTS
 -- Clear old seed data if re-running

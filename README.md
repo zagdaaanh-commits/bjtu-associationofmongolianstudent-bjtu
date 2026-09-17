@@ -81,7 +81,7 @@
    - `completed_at`: timestamptz default now()
 
 4. **Storage Bucket:**
-   - `team-photos` (Багийн шахсан зургуудыг хадгалах сан)
+   - `TEAM-PHOTO` (Багийн шахсан зургуудыг хадгалах сан)
 
 ---
 

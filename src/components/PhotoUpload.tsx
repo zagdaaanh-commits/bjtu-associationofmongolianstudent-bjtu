@@ -110,7 +110,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
 
       let publicUrl = '';
 
-      // 1. Try Supabase Storage upload to 'team-photos' bucket first
+      // 1. Try Supabase Storage upload to 'TEAM-PHOTO' bucket first
       try {
         const rawExt = fileToUpload.name?.includes('.') ? fileToUpload.name.split('.').pop() : '';
         const fileExt = (rawExt || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
@@ -118,7 +118,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
         const filePath = `teams/${fileName}`;
 
         const uploadPromise = supabase.storage
-          .from('team-photos')
+          .from('TEAM-PHOTO')
           .upload(filePath, fileToUpload, {
             cacheControl: '3600',
             upsert: true,
@@ -137,7 +137,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
 
         if (!storageError && uploadData) {
           const { data: publicUrlData } = supabase.storage
-            .from('team-photos')
+            .from('TEAM-PHOTO')
             .getPublicUrl(filePath);
           if (publicUrlData?.publicUrl) {
             publicUrl = publicUrlData.publicUrl;
