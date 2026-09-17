@@ -1,53 +1,59 @@
+@import 'leaflet/dist/leaflet.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #0f172a;
-  --foreground: #f8fafc;
+  --background: #140b06;
+  --foreground: #f6ecda;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  background-color: #140b06;
+  background-image: 
+    radial-gradient(ellipse at top, rgba(74, 44, 20, 0.45) 0%, rgba(20, 11, 6, 0.95) 75%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
 }
 
-/* Leaflet map styles */
-@import 'leaflet/dist/leaflet.css';
+/* ==========================================================================
+   1. 90s RETRO ADVENTURER MINI-MAP STYLES
+   ========================================================================== */
 
+/* Leaflet map base */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  border-radius: 0.75rem;
+  background: #c8b08b !important;
   z-index: 10;
 }
 
-/* Custom pulsing map marker */
-.pulse-marker {
-  position: relative;
-  width: 24px;
-  height: 24px;
+/* Required Sepia Parchment Filter for Mini-Map Tiles */
+.retro-map-tiles {
+  filter: sepia(65%) contrast(115%) brightness(95%) !important;
 }
 
-.pulse-marker::before {
-  content: '';
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background-color: rgba(239, 68, 68, 0.4);
-  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+/* Fix default Leaflet DivIcon styling */
+.custom-checkpoint-pin,
+.custom-user-pin,
+.custom-x-marker,
+.custom-skull-marker {
+  background: transparent !important;
+  border: none !important;
 }
 
+/* Pulse keyframes */
 @keyframes pulse-ring {
   0% {
-    transform: scale(0.5);
-    opacity: 0.8;
+    transform: scale(0.6);
+    opacity: 0.9;
   }
   80%, 100% {
     transform: scale(1.6);
@@ -55,17 +61,594 @@ body {
   }
 }
 
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+@keyframes compass-spin {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
 }
 
-.glass-card {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Retro "X Marks the Spot" map marker */
+.retro-x-marker-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.retro-x-pulse {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px dashed #f59e0b;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, rgba(220, 38, 38, 0.2) 65%, transparent 100%);
+  animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+
+.retro-x-mark {
+  width: 38px;
+  height: 38px;
+  background: radial-gradient(circle at 35% 35%, #ef4444 0%, #b91c1c 60%, #7f1d1d 100%);
+  border: 2.5px solid #fde047;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -3px 4px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  text-shadow: 2px 2px 0 #450a0a, -1px -1px 0 #450a0a, 0 0 6px #fde047;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease-out;
+}
+
+.retro-x-mark:hover {
+  transform: rotate(45deg) scale(1.15);
+}
+
+.retro-x-inner {
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.retro-x-badge {
+  margin-top: 5px;
+  background: linear-gradient(180deg, #fcedc5 0%, #d8b276 100%);
+  color: #2b1708;
+  font-family: 'Rubik', 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1.5px 7px;
+  border-radius: 4px;
+  border: 1.5px solid #5c3514;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+/* Classic Pirate Skull marker for Player Location */
+.retro-skull-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.retro-skull-heading-arrow {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  margin-left: -12px;
+  width: 24px;
+  height: 24px;
+  transform-origin: 12px 34px;
+  pointer-events: none;
+  z-index: 10;
+  transition: transform 0.2s ease-out;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
+
+.retro-nav-line {
+  stroke-dasharray: 8 10;
+  animation: nav-dash-flow 1.5s linear infinite;
+}
+
+@keyframes nav-dash-flow {
+  from {
+    stroke-dashoffset: 36;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.retro-skull-pulse {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(56, 189, 248, 0.8);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(14, 116, 144, 0.15) 70%, transparent 100%);
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+
+.retro-skull-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(145deg, #2a1b10 0%, #0d0704 100%);
+  border: 2.5px solid #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.85), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.retro-skull-badge {
+  margin-top: 4px;
+  background: #140b06;
+  color: #38bdf8;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #0284c7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   2. 64-BIT / LATE 90s RETRO 3D CHUNKY BEVELED UI ELEMENTS
+   ========================================================================== */
+
+/* Chunky Beveled Pirate Wood Panel */
+.pirate-panel-wood {
+  background: linear-gradient(180deg, #3d2413 0%, #29160a 50%, #1a0d05 100%);
+  border: 4px solid #573319;
+  border-top-color: #7d4d29;
+  border-left-color: #6a4020;
+  border-right-color: #140903;
+  border-bottom-color: #0c0502;
+  box-shadow: 
+    inset 1px 1px 0 rgba(255, 255, 255, 0.15),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.7),
+    0 8px 18px rgba(0, 0, 0, 0.75);
+}
+
+/* Chunky Beveled Antique Parchment Container */
+.pirate-panel-parchment {
+  background: 
+    radial-gradient(ellipse at center, #fbf5e6 0%, #f4e8cb 50%, #e2c99b 100%);
+  color: #2b1708;
+  border: 4px solid #b38b55;
+  border-top-color: #edd1a1;
+  border-left-color: #dec08e;
+  border-right-color: #7b572a;
+  border-bottom-color: #5a3c18;
+  box-shadow: 
+    inset 0 0 20px rgba(100, 60, 20, 0.22),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* Vintage mini-map compass border frame */
+.pirate-map-frame {
+  position: relative;
+  border: 6px solid #4a2810;
+  box-shadow: 
+    inset 0 0 0 2px #d97706,
+    inset 0 0 0 5px #78350f,
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.8),
+    0 10px 24px rgba(0, 0, 0, 0.8);
+}
+
+/* Nautical Compass graduations rim around the mini-map */
+.pirate-compass-rim {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border: 3px dashed rgba(217, 119, 6, 0.6);
+  border-radius: inherit;
+  z-index: 405;
+}
+
+/* Compass cardinal direction indicators on the frame */
+.pirate-cardinal-n {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 420;
+  font-family: 'Rubik', 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 11px;
+  color: #ef4444;
+  text-shadow: 0 1px 2px #000, 0 0 4px #fee2e2;
+  background: rgba(30, 16, 8, 0.9);
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid #b45309;
+  line-height: 1.2;
+}
+
+.pirate-cardinal-s {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 420;
+  font-family: 'Rubik', 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  color: #fef08a;
+  text-shadow: 0 1px 2px #000;
+  background: rgba(30, 16, 8, 0.9);
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid #b45309;
+  line-height: 1.2;
+}
+
+.pirate-cardinal-e {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 420;
+  font-family: 'Rubik', 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  color: #fef08a;
+  text-shadow: 0 1px 2px #000;
+  background: rgba(30, 16, 8, 0.9);
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid #b45309;
+  line-height: 1.2;
+}
+
+.pirate-cardinal-w {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 420;
+  font-family: 'Rubik', 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  color: #fef08a;
+  text-shadow: 0 1px 2px #000;
+  background: rgba(30, 16, 8, 0.9);
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid #b45309;
+  line-height: 1.2;
+}
+
+/* Subtle antique map grain overlay */
+.pirate-map-grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  background-image: radial-gradient(rgba(0, 0, 0, 0) 65%, rgba(45, 25, 10, 0.35) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Corner brass rivets / brackets */
+.pirate-corner-rivet {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle at 35% 35%, #ffd700 0%, #b45309 70%, #451a03 100%);
+  border: 1.5px solid #fef08a;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.7);
+  z-index: 410;
+}
+
+/* ==========================================================================
+   3. CHUNKY 90s RETRO BUTTONS (WOOD, GOLD, EMERALD, CRIMSON)
+   ========================================================================== */
+
+/* Golden Doubloon Button */
+.btn-pirate-gold {
+  background: linear-gradient(180deg, #fde047 0%, #eab308 45%, #b45309 52%, #ca8a04 100%);
+  color: #261603;
+  font-family: 'Rubik', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  border: 3px solid #fef08a;
+  border-top-color: #ffffff;
+  border-left-color: #fef08a;
+  border-right-color: #78350f;
+  border-bottom-color: #451a03;
+  box-shadow: 
+    inset 1px 2px 0 rgba(255, 255, 255, 0.8),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
+    0 5px 0 #3d1b02,
+    0 8px 12px rgba(0, 0, 0, 0.6);
+  transition: all 0.08s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-pirate-gold:hover {
+  filter: brightness(1.08);
+}
+
+.btn-pirate-gold:active {
+  transform: translateY(4px);
+  box-shadow: 
+    inset 2px 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 #3d1b02,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Wooden Ship Oak Plank Button */
+.btn-pirate-wood {
+  background: linear-gradient(180deg, #5c381d 0%, #3e2412 45%, #271409 52%, #351e0e 100%);
+  color: #f6ecda;
+  font-family: 'Rubik', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  border: 3px solid #7a4b27;
+  border-top-color: #a46738;
+  border-left-color: #8c562e;
+  border-right-color: #170a04;
+  border-bottom-color: #0d0502;
+  box-shadow: 
+    inset 1px 1px 0 rgba(255, 255, 255, 0.2),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.6),
+    0 5px 0 #120703,
+    0 8px 14px rgba(0, 0, 0, 0.65);
+  transition: all 0.08s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-pirate-wood:hover {
+  filter: brightness(1.1);
+}
+
+.btn-pirate-wood:active {
+  transform: translateY(4px);
+  box-shadow: 
+    inset 2px 2px 4px rgba(0, 0, 0, 0.7),
+    0 1px 0 #120703,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Emerald Gemstone Button */
+.btn-pirate-emerald {
+  background: linear-gradient(180deg, #34d399 0%, #059669 45%, #047857 52%, #065f46 100%);
+  color: #022c22;
+  font-family: 'Rubik', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 900;
+  border: 3px solid #6ee7b7;
+  border-top-color: #a7f3d0;
+  border-left-color: #6ee7b7;
+  border-right-color: #064e3b;
+  border-bottom-color: #022c22;
+  box-shadow: 
+    inset 1px 2px 0 rgba(255, 255, 255, 0.75),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
+    0 5px 0 #022c22,
+    0 8px 12px rgba(0, 0, 0, 0.6);
+  transition: all 0.08s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-pirate-emerald:hover {
+  filter: brightness(1.08);
+}
+
+.btn-pirate-emerald:active {
+  transform: translateY(4px);
+  box-shadow: 
+    inset 2px 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 #022c22,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Pirate Crimson Button */
+.btn-pirate-crimson {
+  background: linear-gradient(180deg, #f87171 0%, #dc2626 45%, #991b1b 52%, #7f1d1d 100%);
+  color: #ffffff;
+  font-family: 'Rubik', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  border: 3px solid #fca5a5;
+  border-top-color: #fecaca;
+  border-left-color: #f87171;
+  border-right-color: #450a0a;
+  border-bottom-color: #2b0606;
+  box-shadow: 
+    inset 1px 2px 0 rgba(255, 255, 255, 0.6),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5),
+    0 5px 0 #2b0606,
+    0 8px 12px rgba(0, 0, 0, 0.65);
+  transition: all 0.08s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-pirate-crimson:hover {
+  filter: brightness(1.08);
+}
+
+.btn-pirate-crimson:active {
+  transform: translateY(4px);
+  box-shadow: 
+    inset 2px 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 #2b0606,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Beveled input field */
+.pirate-input {
+  background: #190e07;
+  border: 2.5px solid #4a2b15;
+  border-top-color: #120703;
+  border-left-color: #180904;
+  border-right-color: #663c1e;
+  border-bottom-color: #7a4724;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.8);
+  color: #fcedc5;
+}
+
+.pirate-input:focus {
+  outline: none;
+  border-color: #eab308;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.8), 0 0 8px rgba(234, 179, 8, 0.4);
+}
+
+/* Adventure Typography Helper */
+.pirate-title-gold {
+  background: linear-gradient(180deg, #fff2b2 0%, #facc15 50%, #ca8a04 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(2px 2px 0px #3d1b02);
+}
+
+.pirate-title-wood {
+  color: #fcedc5;
+  text-shadow: 2px 2px 0 #1c0e06, -1px -1px 0 #1c0e06, 0 4px 8px rgba(0, 0, 0, 0.8);
+}
+
+/* ==========================================================================
+   4. 3D PIRATE SHIP DISPLAY & LIGHTING
+   ========================================================================== */
+.ship-card-3d-wrap {
+  perspective: 1000px;
+}
+
+.ship-card-3d {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.ship-card-3d:hover {
+  transform: translateY(-6px) rotateX(4deg) rotateY(-4deg) scale(1.02);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(245, 158, 11, 0.3);
+}
+
+.ship-glow-pearl {
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25), inset 0 0 15px rgba(0, 0, 0, 0.7);
+}
+
+.ship-glow-anne {
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.3), inset 0 0 15px rgba(0, 0, 0, 0.7);
+}
+
+.ship-glow-dutchman {
+  box-shadow: 0 0 30px rgba(52, 211, 153, 0.4), inset 0 0 20px rgba(6, 78, 59, 0.8);
+}
+
+.ship-glow-hind {
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.4), inset 0 0 15px rgba(0, 0, 0, 0.7);
+}
+
+.ship-glow-galley {
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.3), inset 0 0 15px rgba(0, 0, 0, 0.7);
+}
+
+/* Float animation for 3D ship */
+@keyframes ship-bobbing {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1.2deg);
+  }
+}
+
+.ship-bobbing-anim {
+  animation: ship-bobbing 4s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   5. STRICT PRINT MEDIA LAYOUT (5 PAGES FOR 5 CHECKPOINT QR CODES)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Completely hide all non-printable dashboard elements */
+  header,
+  nav,
+  button,
+  .\print\:hidden,
+  .print-hidden,
+  .no-print,
+  .pirate-panel-wood {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Printable container resets */
+  .qr-print-page-wrapper {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Exactly 1 distinct page per checkpoint (5 Checkpoints = Exactly 5 A4 Pages) */
+  .qr-print-card {
+    page-break-before: always !important;
+    page-break-after: always !important;
+    break-before: page !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    height: 270mm !important;
+    max-height: 275mm !important;
+    box-sizing: border-box !important;
+    padding: 12mm 10mm !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    border: 4px solid #4a2810 !important;
+    border-radius: 24px !important;
+    box-shadow: none !important;
+  }
+
+  .qr-print-card:first-child {
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  .qr-print-card:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    margin-bottom: 0 !important;
+  }
 }

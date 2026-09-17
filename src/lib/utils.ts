@@ -5,10 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatElapsedTime(startedAt: string | null, finishedAt?: string | null): string {
+export function formatElapsedTime(startedAt?: string | null, finishedAt?: string | null): string {
   if (!startedAt) return '00:00';
   const start = new Date(startedAt).getTime();
+  if (isNaN(start)) return '00:00';
   const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
+  if (isNaN(end)) return '00:00';
   const diffMs = Math.max(0, end - start);
 
   const totalSeconds = Math.floor(diffMs / 1000);
@@ -25,6 +27,7 @@ export function formatElapsedTime(startedAt: string | null, finishedAt?: string 
 export function formatDateTime(dateStr: string | null): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
