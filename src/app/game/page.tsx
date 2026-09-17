@@ -13,8 +13,10 @@ export default function GamePage() {
     const teamId = localStorage.getItem('scavenger_team_id');
     if (!teamId) return;
 
-    const unsubscribe = dataService.subscribeToTeam(teamId, (updatedTeam) => {
-      if (updatedTeam.status === 'in_progress') {
+    const unsubscribe = dataService.subscribeToTeam(teamId, (payload) => {
+      // Strict validation check: verify if (!payload || payload.id !== teamId) return;
+      if (!payload || payload.id !== teamId) return;
+      if (payload.status === 'in_progress') {
         soundFX.playChestOpen();
         soundFX.playDiscoveryJingle();
       }

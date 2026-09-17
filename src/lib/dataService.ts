@@ -1,3 +1,4 @@
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { Team, Checkpoint, Submission } from '@/types/database';
 
@@ -495,6 +496,27 @@ export const dataService = {
   },
 
   async updateTeam(id: string, updates: Partial<Team>): Promise<Team> {
+    // Strictly prevent base64 data URIs from polluting localStorage or database
+    if (
+      updates.initial_photo_url &&
+      typeof updates.initial_photo_url === 'string' &&
+      updates.initial_photo_url.startsWith('data:')
+    ) {
+      try {
+        const uploadRes = await apiFetch<{ url: string }>('/api/upload', {
+          method: 'POST',
+          body: JSON.stringify({ dataUrl: updates.initial_photo_url, teamId: id }),
+        });
+        if (uploadRes?.url) {
+          updates.initial_photo_url = uploadRes.url;
+        } else {
+          updates.initial_photo_url = null;
+        }
+      } catch {
+        updates.initial_photo_url = null;
+      }
+    }
+
     // 1. Optimistic update local cache & broadcast for zero-latency UI
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
     let updatedTeam: Team | null = null;
@@ -628,19 +650,31 @@ export const dataService = {
   // -------------------------------------------------------------------------
 
   subscribeToTeam(teamId: string, onUpdate: (team: Team) => void): () => void {
+    const cleanTeamId = teamId.trim();
+
+    // Strict validator function: verify if (!payload || payload.id !== teamId) return; before calling onUpdate
+    const handlePayload = (payload: Team | null | undefined) => {
+      if (!payload || payload.id !== teamId) return;
+      onUpdate(payload);
+    };
+
     // A. Local BroadcastChannel & Window event
     const handleBroadcast = (event: MessageEvent) => {
       const data = event.data;
-      if (data?.type === 'TEAM_UPDATED' && data.payload?.id === teamId) {
-        onUpdate(data.payload as Team);
+      if (data?.type === 'TEAM_UPDATED') {
+        const payload = data.payload as Team;
+        if (!payload || payload.id !== teamId) return;
+        handlePayload(payload);
       }
     };
 
     const handleCustom = (event: Event) => {
       const customEvt = event as CustomEvent;
       const data = customEvt.detail;
-      if (data?.type === 'TEAM_UPDATED' && data.payload?.id === teamId) {
-        onUpdate(data.payload as Team);
+      if (data?.type === 'TEAM_UPDATED') {
+        const payload = data.payload as Team;
+        if (!payload || payload.id !== teamId) return;
+        handlePayload(payload);
       }
     };
 
@@ -657,10 +691,9 @@ export const dataService = {
         sse.addEventListener('TEAM_UPDATED', (e: MessageEvent) => {
           try {
             const parsed = JSON.parse(e.data);
-            const team = (parsed.payload || parsed) as Team;
-            if (team && team.id === teamId) {
-              onUpdate(team);
-            }
+            const payload = (parsed.payload || parsed) as Team;
+            if (!payload || payload.id !== teamId) return;
+            handlePayload(payload);
           } catch {
             // ignore
           }
@@ -675,24 +708,24 @@ export const dataService = {
     let lastStep = -1;
     const pollInterval = setInterval(async () => {
       try {
-        const res = await apiFetch<{ team: Team }>(`/api/teams?id=${teamId}`);
-        if (res?.team) {
-          if (res.team.status !== lastStatus || res.team.current_step !== lastStep) {
-            lastStatus = res.team.status;
-            lastStep = res.team.current_step;
-            onUpdate(res.team);
-          }
+        const res = await apiFetch<{ team: Team }>(`/api/teams?id=${cleanTeamId}`);
+        const payload = res?.team;
+        if (!payload || payload.id !== teamId) return;
+        if (payload.status !== lastStatus || payload.current_step !== lastStep) {
+          lastStatus = payload.status;
+          lastStep = payload.current_step;
+          handlePayload(payload);
         }
       } catch {
         // ignore
       }
     }, 1500);
 
-    // D. Supabase Realtime channel (if reachable)
-    let supabaseChannel: any = null;
+    // D. Supabase Realtime channel (strictly filtered to this team: id=eq.${teamId})
+    let channel: RealtimeChannel | null = null;
     try {
-      supabaseChannel = supabase
-        .channel(`team-${teamId}`)
+      channel = supabase
+        .channel(`team-${cleanTeamId}`)
         .on(
           'postgres_changes',
           {
@@ -702,14 +735,14 @@ export const dataService = {
             filter: `id=eq.${teamId}`,
           },
           (payload) => {
-            if (payload.new) {
-              onUpdate(payload.new as Team);
-            }
+            const updated = payload.new as Team;
+            if (!payload || !updated || updated.id !== teamId) return;
+            handlePayload(updated);
           }
         )
         .subscribe();
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Supabase team subscribe error:', err);
     }
 
     return () => {
@@ -719,12 +752,15 @@ export const dataService = {
       }
       sse?.close();
       clearInterval(pollInterval);
-      if (supabaseChannel) {
+      if (channel) {
         try {
-          supabase.removeChannel(supabaseChannel);
+          supabase.removeChannel(channel).catch((err) => {
+            console.warn('Error removing Supabase team channel:', err);
+          });
         } catch {
           // ignore
         }
+        channel = null;
       }
     };
   },
@@ -770,9 +806,9 @@ export const dataService = {
     }
 
     // Supabase Realtime channel
-    let supabaseChannel: any = null;
+    let channel: RealtimeChannel | null = null;
     try {
-      supabaseChannel = supabase
+      channel = supabase
         .channel('admin-realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, (payload) => {
           if (payload.eventType === 'INSERT') onEvent({ type: 'TEAM_CREATED', payload: payload.new });
@@ -783,8 +819,8 @@ export const dataService = {
           onEvent({ type: 'SUBMISSION_CREATED', payload: payload.new });
         })
         .subscribe();
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Supabase admin subscribe error:', err);
     }
 
     return () => {
@@ -793,12 +829,15 @@ export const dataService = {
         window.removeEventListener('scavenger_hunt_local_event', handleCustom);
       }
       sse?.close();
-      if (supabaseChannel) {
+      if (channel) {
         try {
-          supabase.removeChannel(supabaseChannel);
+          supabase.removeChannel(channel).catch((err) => {
+            console.warn('Error removing Supabase admin channel:', err);
+          });
         } catch {
           // ignore
         }
+        channel = null;
       }
     };
   },
@@ -834,16 +873,16 @@ export const dataService = {
     }
 
     // Supabase Realtime channel
-    let supabaseChannel: any = null;
+    let channel: RealtimeChannel | null = null;
     try {
-      supabaseChannel = supabase
+      channel = supabase
         .channel('admin-teams-table-listener')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
           onChange();
         })
         .subscribe();
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Supabase teams listener subscribe error:', err);
     }
 
     return () => {
@@ -852,12 +891,15 @@ export const dataService = {
         window.removeEventListener('scavenger_hunt_local_event', handleCustom);
       }
       sse?.close();
-      if (supabaseChannel) {
+      if (channel) {
         try {
-          supabase.removeChannel(supabaseChannel);
+          supabase.removeChannel(channel).catch((err) => {
+            console.warn('Error removing Supabase teams listener channel:', err);
+          });
         } catch {
           // ignore
         }
+        channel = null;
       }
     };
   },

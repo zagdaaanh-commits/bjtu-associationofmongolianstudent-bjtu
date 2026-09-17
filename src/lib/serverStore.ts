@@ -309,6 +309,50 @@ class ServerStore {
   }
 
   public updateTeam(id: string, updates: Partial<Team>): Team {
+    // Defense-in-depth: Never persist raw base64 data URIs in db.json or team records
+    if (
+      updates.initial_photo_url &&
+      typeof updates.initial_photo_url === 'string' &&
+      (updates.initial_photo_url.startsWith('data:') ||
+        (!updates.initial_photo_url.startsWith('/') &&
+          !updates.initial_photo_url.startsWith('http') &&
+          updates.initial_photo_url.length > 500))
+    ) {
+      try {
+        let buffer: Buffer | null = null;
+        let ext = '.jpg';
+
+        if (updates.initial_photo_url.startsWith('data:')) {
+          const commaIdx = updates.initial_photo_url.indexOf(',');
+          if (commaIdx !== -1) {
+            const meta = updates.initial_photo_url.slice(0, commaIdx);
+            const base64Data = updates.initial_photo_url.slice(commaIdx + 1);
+            if (meta.includes('png')) ext = '.png';
+            else if (meta.includes('webp')) ext = '.webp';
+            else if (meta.includes('gif')) ext = '.gif';
+            buffer = Buffer.from(base64Data.trim(), 'base64');
+          }
+        } else {
+          buffer = Buffer.from(updates.initial_photo_url.trim(), 'base64');
+        }
+
+        if (buffer && buffer.length > 0) {
+          const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          const fileName = `team_${id}_${Date.now()}${ext}`;
+          fs.writeFileSync(path.join(uploadsDir, fileName), buffer);
+          updates.initial_photo_url = `/uploads/${fileName}`;
+        } else {
+          updates.initial_photo_url = null;
+        }
+      } catch (err) {
+        console.error('Failed to convert base64 initial_photo_url to disk file in serverStore:', err);
+        updates.initial_photo_url = null;
+      }
+    }
+
     const store = this.getStore();
     let updatedTeam: Team | null = null;
 

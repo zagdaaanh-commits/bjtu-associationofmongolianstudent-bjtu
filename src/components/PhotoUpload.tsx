@@ -34,7 +34,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
       setIsCompressing(true);
 
       const options = {
-        maxSizeMB: 0.38, // Compress to < 400KB
+        maxSizeMB: 0.28, // Compress to < 300KB
         maxWidthOrHeight: 1280,
         useWebWorker: true,
         initialQuality: 0.8,
@@ -47,6 +47,20 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
         compressed = await imageCompression(file, { ...options, useWebWorker: false });
       }
 
+      // If still > 300KB, try more aggressive compression
+      if (compressed.size > 300 * 1024) {
+        try {
+          compressed = await imageCompression(file, {
+            maxSizeMB: 0.25,
+            maxWidthOrHeight: 1024,
+            useWebWorker: false,
+            initialQuality: 0.6,
+          });
+        } catch {
+          // ignore
+        }
+      }
+
       setSelectedFile(compressed);
       setCompressedSizeKb(Math.round(compressed.size / 1024));
 
@@ -55,9 +69,13 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
       soundFX.playCoin();
     } catch (err: unknown) {
       console.error('Compression error:', err);
-      setSelectedFile(file);
-      setCompressedSizeKb(Math.round(file.size / 1024));
-      setPreviewUrl(URL.createObjectURL(file));
+      if (file.size <= 300 * 1024) {
+        setSelectedFile(file);
+        setCompressedSizeKb(Math.round(file.size / 1024));
+        setPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setErrorMessage('Зургийг 300KB-аас бага болгож шахаж чадсангүй. Жижиг зураг сонгоно уу.');
+      }
     } finally {
       setIsCompressing(false);
     }
@@ -71,73 +89,92 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
     setErrorMessage(null);
 
     try {
+      let fileToUpload = selectedFile;
+
+      // Ensure file is compressed to strictly under 300KB before upload
+      if (fileToUpload.size > 300 * 1024) {
+        try {
+          fileToUpload = await imageCompression(fileToUpload, {
+            maxSizeMB: 0.25,
+            maxWidthOrHeight: 1024,
+            useWebWorker: false,
+            initialQuality: 0.6,
+          });
+        } catch {
+          // If still over 300KB, reject
+          if (fileToUpload.size > 300 * 1024) {
+            throw new Error('Зургийн хэмжээ 300KB-аас их байна. 300KB-аас бага зураг сонгоно уу.');
+          }
+        }
+      }
+
       let publicUrl = '';
 
-      // 1. Try local server upload (works offline & across LAN devices seamlessly)
+      // 1. Try Supabase Storage upload to 'team-photos' bucket first
       try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('teamId', teamId);
+        const rawExt = fileToUpload.name?.includes('.') ? fileToUpload.name.split('.').pop() : '';
+        const fileExt = (rawExt || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const fileName = `team_${teamId}_${Date.now()}.${fileExt}`;
+        const filePath = `teams/${fileName}`;
 
-        const localRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        if (localRes.ok) {
-          const json = await localRes.json();
-          if (json.url) {
-            publicUrl = json.url;
+        const uploadPromise = supabase.storage
+          .from('team-photos')
+          .upload(filePath, fileToUpload, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: fileToUpload.type || 'image/jpeg',
+          });
+        uploadPromise.catch(() => {});
+
+        const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error('Storage timeout')), 4000)
+        );
+
+        const { error: storageError, data: uploadData } = (await Promise.race([
+          uploadPromise,
+          timeoutPromise,
+        ])) as { error: Error | null; data: { path: string } | null };
+
+        if (!storageError && uploadData) {
+          const { data: publicUrlData } = supabase.storage
+            .from('team-photos')
+            .getPublicUrl(filePath);
+          if (publicUrlData?.publicUrl) {
+            publicUrl = publicUrlData.publicUrl;
           }
         }
       } catch (e) {
-        console.warn('Local /api/upload failed, trying alternatives:', e);
+        console.warn('Supabase storage upload failed or timed out, trying /api/upload fallback:', e);
       }
 
-      // 2. If local upload failed, try uploading to Supabase Storage bucket 'team-photos'
+      // 2. Fallback to local Next.js server upload (/api/upload) storing file on disk
       if (!publicUrl) {
         try {
-          const fileExt = selectedFile.name.split('.').pop() || 'jpg';
-          const fileName = `team_${teamId}_${Date.now()}.${fileExt}`;
-          const filePath = `teams/${fileName}`;
+          const formData = new FormData();
+          formData.append('file', fileToUpload);
+          formData.append('teamId', teamId);
 
-          const uploadPromise = supabase.storage
-            .from('team-photos')
-            .upload(filePath, selectedFile, {
-              cacheControl: '3600',
-              upsert: true,
-            });
-
-          const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
-            setTimeout(() => reject(new Error('Storage timeout')), 2500)
-          );
-
-          const { error: storageError } = (await Promise.race([
-            uploadPromise,
-            timeoutPromise,
-          ])) as { error: Error | null };
-
-          if (!storageError) {
-            const { data: publicUrlData } = supabase.storage
-              .from('team-photos')
-              .getPublicUrl(filePath);
-            publicUrl = publicUrlData.publicUrl;
+          const localRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          if (localRes.ok) {
+            const json = await localRes.json();
+            if (json.url) {
+              publicUrl = json.url;
+            }
           }
         } catch (e) {
-          console.warn('Supabase storage upload fallback to dataURI:', e);
+          console.warn('Local /api/upload failed:', e);
         }
       }
 
-      // 3. If still no URL, use base64 data URI fallback
-      if (!publicUrl) {
-        const reader = new FileReader();
-        publicUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(selectedFile);
-        });
+      // Strict requirement: Never store raw base64 data URIs in the database or team records
+      if (!publicUrl || publicUrl.startsWith('data:')) {
+        throw new Error('Зураг байршуулахад алдаа гарлаа. Сервер эсвэл Supabase Storage-д хадгалж чадсангүй.');
       }
 
-      // Update team record
+      // Update team record with public URL string ONLY
       await dataService.updateTeam(teamId, {
         initial_photo_url: publicUrl,
         status: 'photo_pending',
@@ -192,7 +229,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
           </p>
           <div className="mt-4 px-3 py-1.5 rounded-full bg-[#2b1708] border border-[#854d0e] text-[11px] text-amber-300 font-bold flex items-center gap-1.5 font-cinzel">
             <Compass className="w-3.5 h-3.5 text-amber-400" />
-            Автоматаар шахагдана (&lt;400KB)
+            Автоматаар шахагдана (&lt;300KB)
           </div>
         </div>
       ) : (

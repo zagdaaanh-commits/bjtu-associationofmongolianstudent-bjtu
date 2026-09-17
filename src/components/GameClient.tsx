@@ -130,14 +130,19 @@ export default function GameClient() {
   useEffect(() => {
     if (!team?.id) return;
 
-    const unsubscribe = dataService.subscribeToTeam(team.id, (updatedTeam) => {
+    const myTeamId = team.id;
+    const teamId = myTeamId;
+    const unsubscribe = dataService.subscribeToTeam(teamId, (payload) => {
+      // Strict validation check: before calling setTeam or onUpdate, verify if (!payload || payload.id !== teamId) return;
+      if (!payload || payload.id !== teamId) return;
+
       setTeam((prev) => {
-        if (!prev) return updatedTeam;
-        if (prev.status === 'photo_pending' && updatedTeam.status === 'in_progress') {
+        if (!prev || prev.id !== teamId) return prev;
+        if (prev.status === 'photo_pending' && payload.status === 'in_progress') {
           soundFX.playChestOpen();
           soundFX.playDiscoveryJingle();
         }
-        return updatedTeam;
+        return payload;
       });
     });
 
@@ -145,9 +150,10 @@ export default function GameClient() {
     const pollInterval = setInterval(async () => {
       if (team.status === 'photo_pending') {
         try {
-          const fresh = await dataService.getTeam(team.id);
-          if (fresh && fresh.status === 'in_progress') {
-            setTeam(fresh);
+          const payload = await dataService.getTeam(teamId);
+          if (!payload || payload.id !== teamId) return;
+          if (payload.status === 'in_progress') {
+            setTeam(payload);
             soundFX.playChestOpen();
             soundFX.playDiscoveryJingle();
           }

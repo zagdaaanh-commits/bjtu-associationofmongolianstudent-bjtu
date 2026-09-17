@@ -38,26 +38,45 @@ export async function POST(request: NextRequest) {
     // JSON body with base64 data URL
     if (contentType.includes('application/json')) {
       const body = await request.json();
-      const { dataUrl, teamId } = body;
+      const rawData =
+        body.dataUrl || body.image || body.base64 || body.photo || body.initial_photo_url;
+      const teamId = body.teamId || 'anon';
 
-      if (!dataUrl || typeof dataUrl !== 'string') {
+      if (!rawData || typeof rawData !== 'string') {
         return NextResponse.json({ error: 'Missing dataUrl' }, { status: 400 });
       }
 
-      const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      if (!matches || matches.length !== 3) {
-        return NextResponse.json({ error: 'Invalid base64 data URL' }, { status: 400 });
+      // If already a public url path, return it directly
+      if (rawData.startsWith('/uploads/')) {
+        return NextResponse.json({ url: rawData });
       }
 
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-      const buffer = Buffer.from(base64Data, 'base64');
-
+      let buffer: Buffer;
       let ext = '.jpg';
-      if (mimeType.includes('png')) ext = '.png';
-      else if (mimeType.includes('webp')) ext = '.webp';
 
-      const fileName = `team_${teamId || 'anon'}_${Date.now()}${ext}`;
+      if (rawData.startsWith('data:')) {
+        const commaIdx = rawData.indexOf(',');
+        if (commaIdx === -1) {
+          return NextResponse.json({ error: 'Invalid base64 data URL' }, { status: 400 });
+        }
+        const meta = rawData.slice(0, commaIdx);
+        const base64Data = rawData.slice(commaIdx + 1);
+
+        if (meta.includes('png')) ext = '.png';
+        else if (meta.includes('webp')) ext = '.webp';
+        else if (meta.includes('gif')) ext = '.gif';
+
+        buffer = Buffer.from(base64Data.trim(), 'base64');
+      } else {
+        // Raw base64 string
+        buffer = Buffer.from(rawData.trim(), 'base64');
+      }
+
+      if (!buffer || buffer.length === 0) {
+        return NextResponse.json({ error: 'Invalid or empty base64 data' }, { status: 400 });
+      }
+
+      const fileName = `team_${teamId}_${Date.now()}${ext}`;
       const filePath = path.join(uploadsDir, fileName);
 
       fs.writeFileSync(filePath, buffer);
