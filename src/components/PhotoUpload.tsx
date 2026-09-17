@@ -73,39 +73,61 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
     try {
       let publicUrl = '';
 
-      // Try uploading to Supabase Storage bucket 'team-photos'
+      // 1. Try local server upload (works offline & across LAN devices seamlessly)
       try {
-        const fileExt = selectedFile.name.split('.').pop() || 'jpg';
-        const fileName = `team_${teamId}_${Date.now()}.${fileExt}`;
-        const filePath = `teams/${fileName}`;
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('teamId', teamId);
 
-        const uploadPromise = supabase.storage
-          .from('team-photos')
-          .upload(filePath, selectedFile, {
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
-          setTimeout(() => reject(new Error('Storage timeout')), 2500)
-        );
-
-        const { error: storageError } = (await Promise.race([
-          uploadPromise,
-          timeoutPromise,
-        ])) as { error: Error | null };
-
-        if (!storageError) {
-          const { data: publicUrlData } = supabase.storage
-            .from('team-photos')
-            .getPublicUrl(filePath);
-          publicUrl = publicUrlData.publicUrl;
+        const localRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (localRes.ok) {
+          const json = await localRes.json();
+          if (json.url) {
+            publicUrl = json.url;
+          }
         }
       } catch (e) {
-        console.warn('Supabase storage upload fallback to dataURI:', e);
+        console.warn('Local /api/upload failed, trying alternatives:', e);
       }
 
-      // If storage upload didn't succeed, use base64 data URI fallback
+      // 2. If local upload failed, try uploading to Supabase Storage bucket 'team-photos'
+      if (!publicUrl) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop() || 'jpg';
+          const fileName = `team_${teamId}_${Date.now()}.${fileExt}`;
+          const filePath = `teams/${fileName}`;
+
+          const uploadPromise = supabase.storage
+            .from('team-photos')
+            .upload(filePath, selectedFile, {
+              cacheControl: '3600',
+              upsert: true,
+            });
+
+          const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
+            setTimeout(() => reject(new Error('Storage timeout')), 2500)
+          );
+
+          const { error: storageError } = (await Promise.race([
+            uploadPromise,
+            timeoutPromise,
+          ])) as { error: Error | null };
+
+          if (!storageError) {
+            const { data: publicUrlData } = supabase.storage
+              .from('team-photos')
+              .getPublicUrl(filePath);
+            publicUrl = publicUrlData.publicUrl;
+          }
+        } catch (e) {
+          console.warn('Supabase storage upload fallback to dataURI:', e);
+        }
+      }
+
+      // 3. If still no URL, use base64 data URI fallback
       if (!publicUrl) {
         const reader = new FileReader();
         publicUrl = await new Promise<string>((resolve, reject) => {

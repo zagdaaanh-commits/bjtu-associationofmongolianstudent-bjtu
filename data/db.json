@@ -1,0 +1,154 @@
+{
+  "teams": [
+    {
+      "id": "team_black_pearl_7701",
+      "name": "Хар Сувд",
+      "pin_code": "7701",
+      "current_step": 0,
+      "status": "photo_pending",
+      "initial_photo_url": null,
+      "started_at": null,
+      "finished_at": null,
+      "created_at": "2026-09-17T08:56:32.180Z"
+    },
+    {
+      "id": "team_queen_anne_8802",
+      "name": "Хатан хааны өшөө авалт",
+      "pin_code": "8802",
+      "current_step": 0,
+      "status": "photo_pending",
+      "initial_photo_url": null,
+      "started_at": null,
+      "finished_at": null,
+      "created_at": "2026-09-17T08:56:32.181Z"
+    },
+    {
+      "id": "team_flying_dutchman_3303",
+      "name": "Нисдэг Голланд",
+      "pin_code": "3303",
+      "current_step": 0,
+      "status": "photo_pending",
+      "initial_photo_url": null,
+      "started_at": null,
+      "finished_at": null,
+      "created_at": "2026-09-17T08:56:32.181Z"
+    },
+    {
+      "id": "team_golden_hind_9904",
+      "name": "Алтан Хинд",
+      "pin_code": "9904",
+      "current_step": 0,
+      "status": "photo_pending",
+      "initial_photo_url": null,
+      "started_at": null,
+      "finished_at": null,
+      "created_at": "2026-09-17T08:56:32.181Z"
+    },
+    {
+      "id": "team_adventure_galley_5505",
+      "name": "Адал явдалт Галеон",
+      "pin_code": "5505",
+      "current_step": 0,
+      "status": "photo_pending",
+      "initial_photo_url": null,
+      "started_at": null,
+      "finished_at": null,
+      "created_at": "2026-09-17T08:56:32.181Z"
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": 1,
+      "step_number": 1,
+      "title": "Сургуулийн уриа (North Gate Plaza)",
+      "hint_image_url": "https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?auto=format&fit=crop&w=800&q=80",
+      "lat": 39.9922,
+      "lng": 116.2942,
+      "qr_token": "hd_park_alpha_7x",
+      "question": "学校的校训是什么？",
+      "options": [
+        "A. 自强不息，厚德载物",
+        "B. 知行",
+        "C. 实事求是",
+        "D. 博学而笃志"
+      ],
+      "correct_answer": "B. 知行"
+    },
+    {
+      "id": 2,
+      "step_number": 2,
+      "title": "Физикийн хууль (Central Lawn)",
+      "hint_image_url": "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=800&q=80",
+      "lat": 39.9885,
+      "lng": 116.294,
+      "qr_token": "hd_park_stage_c2",
+      "question": "Ньютоны 2-р хуулийн үндсэн томьёо аль нь вэ?",
+      "options": [
+        "A. F = m · a",
+        "B. E = m · c²",
+        "C. p = m · v",
+        "D. F = -k · x"
+      ],
+      "correct_answer": "A. F = m · a"
+    },
+    {
+      "id": 3,
+      "step_number": 3,
+      "title": "Сургуулийн түүх (Jingxi Rice Field)",
+      "hint_image_url": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80",
+      "lat": 39.9868,
+      "lng": 116.2925,
+      "qr_token": "hd_park_rice_j3",
+      "question": "Бээжингийн Тээврийн Их Сургууль (BJTU) анх хэдэн онд байгуулагдсан бэ?",
+      "options": [
+        "A. 1896",
+        "B. 1909",
+        "C. 1921",
+        "D. 1949"
+      ],
+      "correct_answer": "A. 1896"
+    },
+    {
+      "id": 4,
+      "step_number": 4,
+      "title": "Эртний ханзны оньсого (AI Smart Pavilion)",
+      "hint_image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      "lat": 39.9898,
+      "lng": 116.2965,
+      "qr_token": "hd_park_ai_p4",
+      "question": "Дараах эртний ганц ханз ямар утгатай вэ?【 囚 】",
+      "options": [
+        "A. Шоронд хорих / Хоригдол",
+        "B. Гэртээ амрах",
+        "C. Мод тарих",
+        "D. Хайрцаг онгойлгох"
+      ],
+      "correct_answer": "A. Шоронд хорих / Хоригдол"
+    },
+    {
+      "id": 5,
+      "step_number": 5,
+      "title": "Олон улсын оюутны бүртгэл & Виз (South Lotus Pond)",
+      "hint_image_url": "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
+      "lat": 39.9855,
+      "lng": 116.2952,
+      "qr_token": "hd_park_lotus_s5",
+      "question": "Оюутны виз сунгах, сургуулийн албан ёсны бүртгэл хийлгэхэд олон улсын оюутнууд заавал очдог газар аль нь вэ?",
+      "options": [
+        "A. 国际教育学院 (CIE)",
+        "B. 体育馆",
+        "C. 校医院",
+        "D. 保卫处"
+      ],
+      "correct_answer": "A. 国际教育学院 (CIE)"
+    }
+  ],
+  "submissions": [
+    {
+      "id": 1789635552665,
+      "team_id": "team_black_pearl_7701",
+      "checkpoint_id": 1,
+      "completed_at": "2026-09-17T08:59:12.665Z"
+    }
+  ]
+}

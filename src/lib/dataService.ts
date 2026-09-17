@@ -164,7 +164,6 @@ const STORAGE_KEYS = {
   SUBMISSIONS: 'scavenger_submissions_data',
 };
 
-// Safe localStorage helpers
 function getLocal<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -184,8 +183,7 @@ function setLocal<T>(key: string, value: T): void {
   }
 }
 
-// Timeout wrapper to prevent hanging on unreachable Supabase instances
-function withTimeout<T>(promiseLike: PromiseLike<T>, ms = 3000): Promise<T> {
+function withTimeout<T>(promiseLike: PromiseLike<T>, ms = 2500): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`Operation timed out after ${ms}ms`));
@@ -203,7 +201,24 @@ function withTimeout<T>(promiseLike: PromiseLike<T>, ms = 3000): Promise<T> {
   });
 }
 
-// Cross-tab broadcast channel
+// Helper to call Next.js Server API
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers || {}),
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 function getBroadcastChannel(): BroadcastChannel | null {
   if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
     try {
@@ -223,7 +238,6 @@ export function broadcastEvent(event: { type: string; payload: unknown }) {
   } catch {
     // ignore
   }
-  // Also dispatch a custom window event for same-tab listeners
   if (typeof window !== 'undefined') {
     try {
       window.dispatchEvent(new CustomEvent('scavenger_hunt_local_event', { detail: event }));
@@ -233,7 +247,6 @@ export function broadcastEvent(event: { type: string; payload: unknown }) {
   }
 }
 
-// Generate simple random UUID
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -248,6 +261,13 @@ function generateUUID(): string {
 export const dataService = {
   // Checkpoints
   async getCheckpoints(): Promise<Checkpoint[]> {
+    // 1. Try local cache
+    const local = getLocal<Checkpoint[]>(STORAGE_KEYS.CHECKPOINTS, []);
+    if (local.length === SEED_CHECKPOINTS.length && local[0]?.question === SEED_CHECKPOINTS[0].question) {
+      return local;
+    }
+
+    // 2. Try Supabase
     try {
       const res = await withTimeout(
         supabase.from('checkpoints').select('*').order('step_number', { ascending: true })
@@ -257,19 +277,13 @@ export const dataService = {
         return res.data;
       }
     } catch {
-      // Supabase failed or timed out, fall back to local
-    }
-
-    const local = getLocal<Checkpoint[]>(STORAGE_KEYS.CHECKPOINTS, []);
-    if (local.length === SEED_CHECKPOINTS.length && local[0]?.question === SEED_CHECKPOINTS[0].question) {
-      return local;
+      // ignore
     }
 
     setLocal(STORAGE_KEYS.CHECKPOINTS, SEED_CHECKPOINTS);
     return SEED_CHECKPOINTS;
   },
 
-  // Dynamic fetch active step's question and options from Supabase
   async getCheckpointByStep(stepNumber: number): Promise<Checkpoint | null> {
     try {
       const res = await withTimeout(
@@ -279,7 +293,7 @@ export const dataService = {
         return res.data;
       }
     } catch (e) {
-      console.warn('getCheckpointByStep error, falling back:', e);
+      // ignore
     }
     const all = await this.getCheckpoints();
     return all.find((cp) => cp.step_number === stepNumber) || null;
@@ -287,6 +301,14 @@ export const dataService = {
 
   // Teams
   async getTeams(): Promise<Team[]> {
+    // 1. First priority: Fetch from Next.js server API (shared across LAN & mobile)
+    const apiRes = await apiFetch<{ teams: Team[] }>('/api/teams');
+    if (apiRes?.teams && apiRes.teams.length > 0) {
+      setLocal(STORAGE_KEYS.TEAMS, apiRes.teams);
+      return apiRes.teams;
+    }
+
+    // 2. Try Supabase cloud (if reachable)
     try {
       const res = await withTimeout(
         supabase.from('teams').select('*').order('created_at', { ascending: false })
@@ -296,16 +318,29 @@ export const dataService = {
         return res.data;
       }
     } catch {
-      // Fall back
+      // ignore
     }
+
+    // 3. Fallback to localStorage
     return getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
   },
 
   async getTeam(id: string): Promise<Team | null> {
+    // 1. Try local server API
+    const apiRes = await apiFetch<{ team: Team }>(`/api/teams?id=${id}`);
+    if (apiRes?.team) {
+      const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
+      const idx = current.findIndex((t) => t.id === id);
+      if (idx >= 0) current[idx] = apiRes.team;
+      else current.push(apiRes.team);
+      setLocal(STORAGE_KEYS.TEAMS, current);
+      return apiRes.team;
+    }
+
+    // 2. Try Supabase
     try {
       const res = await withTimeout(supabase.from('teams').select('*').eq('id', id).single());
       if (res.data && !res.error) {
-        // update local cache
         const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
         const idx = current.findIndex((t) => t.id === id);
         if (idx >= 0) current[idx] = res.data;
@@ -314,7 +349,7 @@ export const dataService = {
         return res.data;
       }
     } catch {
-      // Fall back
+      // ignore
     }
 
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
@@ -322,46 +357,54 @@ export const dataService = {
   },
 
   async createTeam(name: string, pinCode: string): Promise<Team> {
-    const newTeam: Team = {
-      id: generateUUID(),
-      name: name.trim(),
-      pin_code: pinCode.trim(),
-      current_step: 0,
-      status: 'photo_pending',
-      initial_photo_url: null,
-      started_at: null,
-      finished_at: null,
-      created_at: new Date().toISOString(),
-    };
+    const cleanName = name.trim();
+    const cleanPin = pinCode.trim();
 
-    // Save locally first for instant feedback
+    // 1. Send to local server API (instantly updates serverStore & broadcasts SSE)
+    const apiRes = await apiFetch<{ team: Team }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create', name: cleanName, pin_code: cleanPin }),
+    });
+
+    let newTeam: Team;
+    if (apiRes?.team) {
+      newTeam = apiRes.team;
+    } else {
+      newTeam = {
+        id: generateUUID(),
+        name: cleanName,
+        pin_code: cleanPin,
+        current_step: 0,
+        status: 'photo_pending',
+        initial_photo_url: null,
+        started_at: null,
+        finished_at: null,
+        created_at: new Date().toISOString(),
+      };
+    }
+
+    // Save locally
     const teams = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
-    // avoid duplicate ID
     const updatedTeams = [newTeam, ...teams.filter((t) => t.id !== newTeam.id)];
     setLocal(STORAGE_KEYS.TEAMS, updatedTeams);
     broadcastEvent({ type: 'TEAM_CREATED', payload: newTeam });
 
-    // Try Supabase in background
-    withTimeout(supabase.from('teams').insert(newTeam).select().single())
-      .then(({ data, error }) => {
-        if (data && !error) {
-          const fresh = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
-          const idx = fresh.findIndex((t) => t.id === newTeam.id);
-          if (idx >= 0) fresh[idx] = data;
-          setLocal(STORAGE_KEYS.TEAMS, fresh);
-        }
-      })
-      .catch((err) => {
-        console.warn('Supabase create team background sync error:', err.message);
-      });
+    // Sync to Supabase in background
+    withTimeout(supabase.from('teams').insert(newTeam).select().single()).catch(() => {});
 
     return newTeam;
   },
 
   async joinTeam(name: string, pinCode: string): Promise<Team | null> {
-    const trimmedName = name.trim().toLowerCase();
     const trimmedPin = pinCode.trim();
 
+    // 1. Check local server API
+    const apiRes = await apiFetch<{ team: Team }>(`/api/teams?pin=${trimmedPin}`);
+    if (apiRes?.team) {
+      return apiRes.team;
+    }
+
+    // 2. Try Supabase
     try {
       const res = await withTimeout(
         supabase
@@ -372,30 +415,36 @@ export const dataService = {
           .maybeSingle()
       );
       if (res.data && !res.error) {
-        // Cache locally
-        const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
-        if (!current.some((t) => t.id === res.data.id)) {
-          setLocal(STORAGE_KEYS.TEAMS, [res.data, ...current]);
-        }
         return res.data;
       }
     } catch {
-      // Fallback
+      // ignore
     }
 
+    // 3. Fallback to local cache
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
     return (
       current.find(
-        (t) => t.name.toLowerCase() === trimmedName && t.pin_code === trimmedPin
+        (t) => t.name.toLowerCase() === name.trim().toLowerCase() && t.pin_code === trimmedPin
       ) || null
     );
   },
 
-  // Direct login with 4-digit PIN code (joins assigned pirate ship team)
   async loginByPin(pinCode: string): Promise<Team | null> {
     const trimmedPin = pinCode.trim();
     if (!trimmedPin) return null;
 
+    // 1. Try local server API
+    const apiRes = await apiFetch<{ team: Team }>(`/api/teams?pin=${trimmedPin}`);
+    if (apiRes?.team) {
+      const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
+      if (!current.some((t) => t.id === apiRes.team.id)) {
+        setLocal(STORAGE_KEYS.TEAMS, [apiRes.team, ...current]);
+      }
+      return apiRes.team;
+    }
+
+    // 2. Try Supabase
     try {
       const res = await withTimeout(
         supabase.from('teams').select('*').eq('pin_code', trimmedPin).maybeSingle()
@@ -408,14 +457,14 @@ export const dataService = {
         return res.data;
       }
     } catch {
-      // fallback
+      // ignore
     }
 
+    // 3. Check preconfigured teams
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
     const local = current.find((t) => t.pin_code === trimmedPin);
     if (local) return local;
 
-    // Check preconfigured teams
     const preTeam = PRECONFIGURED_TEAMS.find((p) => p.pin_code === trimmedPin);
     if (preTeam) {
       return await this.createTeam(preTeam.name, preTeam.pin_code);
@@ -424,7 +473,6 @@ export const dataService = {
     return null;
   },
 
-  // Pre-seed 5 pirate ship teams into Supabase & LocalStorage
   async seedPreconfiguredTeams(): Promise<Team[]> {
     const existing = await this.getTeams();
     const result: Team[] = [...existing];
@@ -447,6 +495,7 @@ export const dataService = {
   },
 
   async updateTeam(id: string, updates: Partial<Team>): Promise<Team> {
+    // 1. Optimistic update local cache & broadcast for zero-latency UI
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
     let updatedTeam: Team | null = null;
 
@@ -459,12 +508,11 @@ export const dataService = {
     });
 
     if (!updatedTeam) {
-      // Create stub if missing
       updatedTeam = {
         id,
         name: updates.name || 'Баг',
         pin_code: updates.pin_code || '1234',
-        current_step: updates.current_step || 0,
+        current_step: updates.current_step ?? 0,
         status: updates.status || 'photo_pending',
         initial_photo_url: updates.initial_photo_url ?? null,
         started_at: updates.started_at ?? null,
@@ -478,26 +526,28 @@ export const dataService = {
     setLocal(STORAGE_KEYS.TEAMS, newTeams);
     broadcastEvent({ type: 'TEAM_UPDATED', payload: updatedTeam });
 
-    // Sync to Supabase in background
-    withTimeout(supabase.from('teams').update(updates).eq('id', id))
-      .catch((err) => {
-        console.warn('Supabase update background sync error:', err.message);
-      });
+    // 2. Push to local Next.js server API (broadcasts to all mobile phones & laptops via SSE!)
+    apiFetch<{ team: Team }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify({ id, updates }),
+    }).catch(() => {});
+
+    // 3. Sync to Supabase in background
+    withTimeout(supabase.from('teams').update(updates).eq('id', id)).catch(() => {});
 
     return updatedTeam;
   },
 
   async deleteTeam(id: string): Promise<void> {
     const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
-    const filtered = current.filter((t) => t.id !== id);
-    setLocal(STORAGE_KEYS.TEAMS, filtered);
+    setLocal(STORAGE_KEYS.TEAMS, current.filter((t) => t.id !== id));
 
     const subs = getLocal<Submission[]>(STORAGE_KEYS.SUBMISSIONS, []);
     setLocal(STORAGE_KEYS.SUBMISSIONS, subs.filter((s) => s.team_id !== id));
 
     broadcastEvent({ type: 'TEAM_DELETED', payload: { id } });
 
-    // Sync to Supabase
+    apiFetch(`/api/teams?id=${id}`, { method: 'DELETE' }).catch(() => {});
     withTimeout(supabase.from('teams').delete().eq('id', id)).catch(() => {});
   },
 
@@ -514,13 +564,18 @@ export const dataService = {
     setLocal(STORAGE_KEYS.SUBMISSIONS, subs.filter((s) => s.team_id !== id));
 
     const updated = await this.updateTeam(id, updates);
-
     withTimeout(supabase.from('submissions').delete().eq('team_id', id)).catch(() => {});
     return updated;
   },
 
   // Submissions
   async getSubmissions(): Promise<Submission[]> {
+    const apiRes = await apiFetch<{ submissions: Submission[] }>('/api/submissions');
+    if (apiRes?.submissions) {
+      setLocal(STORAGE_KEYS.SUBMISSIONS, apiRes.submissions);
+      return apiRes.submissions;
+    }
+
     try {
       const res = await withTimeout(
         supabase.from('submissions').select('*').order('completed_at', { ascending: false })
@@ -530,7 +585,7 @@ export const dataService = {
         return res.data;
       }
     } catch {
-      // Fallback
+      // ignore
     }
     return getLocal<Submission[]>(STORAGE_KEYS.SUBMISSIONS, []);
   },
@@ -544,22 +599,36 @@ export const dataService = {
     };
 
     const subs = getLocal<Submission[]>(STORAGE_KEYS.SUBMISSIONS, []);
-    const updatedSubs = [newSub, ...subs.filter((s) => !(s.team_id === teamId && s.checkpoint_id === checkpointId))];
+    const updatedSubs = [
+      newSub,
+      ...subs.filter((s) => !(s.team_id === teamId && s.checkpoint_id === checkpointId)),
+    ];
     setLocal(STORAGE_KEYS.SUBMISSIONS, updatedSubs);
-
     broadcastEvent({ type: 'SUBMISSION_CREATED', payload: newSub });
 
-    withTimeout(supabase.from('submissions').insert({
-      team_id: teamId,
-      checkpoint_id: checkpointId,
-    })).catch(() => {});
+    // Send to local server API
+    apiFetch('/api/submissions', {
+      method: 'POST',
+      body: JSON.stringify({ team_id: teamId, checkpoint_id: checkpointId }),
+    }).catch(() => {});
+
+    // Send to Supabase
+    withTimeout(
+      supabase.from('submissions').insert({
+        team_id: teamId,
+        checkpoint_id: checkpointId,
+      })
+    ).catch(() => {});
 
     return newSub;
   },
 
-  // Realtime Subscriptions
+  // -------------------------------------------------------------------------
+  // HYBRID REALTIME SUBSCRIPTIONS (Local SSE + Polling + Supabase Realtime)
+  // -------------------------------------------------------------------------
+
   subscribeToTeam(teamId: string, onUpdate: (team: Team) => void): () => void {
-    // 1. Local sync bus
+    // A. Local BroadcastChannel & Window event
     const handleBroadcast = (event: MessageEvent) => {
       const data = event.data;
       if (data?.type === 'TEAM_UPDATED' && data.payload?.id === teamId) {
@@ -580,34 +649,82 @@ export const dataService = {
       window.addEventListener('scavenger_hunt_local_event', handleCustom);
     }
 
-    // 2. Supabase Realtime channel
-    const supabaseChannel = supabase
-      .channel(`team-${teamId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'teams',
-          filter: `id=eq.${teamId}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            onUpdate(payload.new as Team);
+    // B. Server-Sent Events (SSE) from Next.js server
+    let sse: EventSource | null = null;
+    if (typeof window !== 'undefined' && 'EventSource' in window) {
+      try {
+        sse = new EventSource('/api/events');
+        sse.addEventListener('TEAM_UPDATED', (e: MessageEvent) => {
+          try {
+            const parsed = JSON.parse(e.data);
+            const team = (parsed.payload || parsed) as Team;
+            if (team && team.id === teamId) {
+              onUpdate(team);
+            }
+          } catch {
+            // ignore
+          }
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    // C. Fallback polling every 1.5s to ensure zero missed updates
+    let lastStatus = '';
+    let lastStep = -1;
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await apiFetch<{ team: Team }>(`/api/teams?id=${teamId}`);
+        if (res?.team) {
+          if (res.team.status !== lastStatus || res.team.current_step !== lastStep) {
+            lastStatus = res.team.status;
+            lastStep = res.team.current_step;
+            onUpdate(res.team);
           }
         }
-      )
-      .subscribe();
+      } catch {
+        // ignore
+      }
+    }, 1500);
+
+    // D. Supabase Realtime channel (if reachable)
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel(`team-${teamId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'teams',
+            filter: `id=eq.${teamId}`,
+          },
+          (payload) => {
+            if (payload.new) {
+              onUpdate(payload.new as Team);
+            }
+          }
+        )
+        .subscribe();
+    } catch {
+      // ignore
+    }
 
     return () => {
       syncChannel?.removeEventListener('message', handleBroadcast);
       if (typeof window !== 'undefined') {
         window.removeEventListener('scavenger_hunt_local_event', handleCustom);
       }
-      try {
-        supabase.removeChannel(supabaseChannel);
-      } catch {
-        // ignore
+      sse?.close();
+      clearInterval(pollInterval);
+      if (supabaseChannel) {
+        try {
+          supabase.removeChannel(supabaseChannel);
+        } catch {
+          // ignore
+        }
       }
     };
   },
@@ -615,18 +732,13 @@ export const dataService = {
   subscribeToAdmin(
     onEvent: (event: { type: string; payload: unknown }) => void
   ): () => void {
-    // 1. Local sync bus
     const handleBroadcast = (event: MessageEvent) => {
-      if (event.data?.type) {
-        onEvent(event.data);
-      }
+      if (event.data?.type) onEvent(event.data);
     };
 
     const handleCustom = (event: Event) => {
       const customEvt = event as CustomEvent;
-      if (customEvt.detail?.type) {
-        onEvent(customEvt.detail);
-      }
+      if (customEvt.detail?.type) onEvent(customEvt.detail);
     };
 
     syncChannel?.addEventListener('message', handleBroadcast);
@@ -634,57 +746,71 @@ export const dataService = {
       window.addEventListener('scavenger_hunt_local_event', handleCustom);
     }
 
-    // 2. Supabase Realtime channel
-    const supabaseChannel = supabase
-      .channel('admin-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'teams' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            onEvent({ type: 'TEAM_CREATED', payload: payload.new });
-          } else if (payload.eventType === 'UPDATE') {
-            onEvent({ type: 'TEAM_UPDATED', payload: payload.new });
-          } else if (payload.eventType === 'DELETE') {
-            onEvent({ type: 'TEAM_DELETED', payload: payload.old });
+    // Server-Sent Events (SSE)
+    let sse: EventSource | null = null;
+    if (typeof window !== 'undefined' && 'EventSource' in window) {
+      try {
+        sse = new EventSource('/api/events');
+        const handleSSEEvent = (e: MessageEvent) => {
+          try {
+            const parsed = JSON.parse(e.data);
+            onEvent({ type: parsed.type, payload: parsed.payload });
+          } catch {
+            // ignore
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'submissions' },
-        (payload) => {
+        };
+
+        sse.addEventListener('TEAM_CREATED', handleSSEEvent);
+        sse.addEventListener('TEAM_UPDATED', handleSSEEvent);
+        sse.addEventListener('TEAM_DELETED', handleSSEEvent);
+        sse.addEventListener('SUBMISSION_CREATED', handleSSEEvent);
+      } catch {
+        // ignore
+      }
+    }
+
+    // Supabase Realtime channel
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('admin-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, (payload) => {
+          if (payload.eventType === 'INSERT') onEvent({ type: 'TEAM_CREATED', payload: payload.new });
+          else if (payload.eventType === 'UPDATE') onEvent({ type: 'TEAM_UPDATED', payload: payload.new });
+          else if (payload.eventType === 'DELETE') onEvent({ type: 'TEAM_DELETED', payload: payload.old });
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'submissions' }, (payload) => {
           onEvent({ type: 'SUBMISSION_CREATED', payload: payload.new });
-        }
-      )
-      .subscribe();
+        })
+        .subscribe();
+    } catch {
+      // ignore
+    }
 
     return () => {
       syncChannel?.removeEventListener('message', handleBroadcast);
       if (typeof window !== 'undefined') {
         window.removeEventListener('scavenger_hunt_local_event', handleCustom);
       }
-      try {
-        supabase.removeChannel(supabaseChannel);
-      } catch {
-        // ignore
+      sse?.close();
+      if (supabaseChannel) {
+        try {
+          supabase.removeChannel(supabaseChannel);
+        } catch {
+          // ignore
+        }
       }
     };
   },
 
-  // Dedicated realtime listener for teams table changes (used in admin/page.tsx)
   subscribeToTeamsChanges(onChange: () => void): () => void {
     const handleBroadcast = (event: MessageEvent) => {
-      if (event.data?.type?.startsWith('TEAM_')) {
-        onChange();
-      }
+      if (event.data?.type?.startsWith('TEAM_')) onChange();
     };
 
     const handleCustom = (event: Event) => {
       const customEvt = event as CustomEvent;
-      if (customEvt.detail?.type?.startsWith('TEAM_')) {
-        onChange();
-      }
+      if (customEvt.detail?.type?.startsWith('TEAM_')) onChange();
     };
 
     syncChannel?.addEventListener('message', handleBroadcast);
@@ -692,26 +818,46 @@ export const dataService = {
       window.addEventListener('scavenger_hunt_local_event', handleCustom);
     }
 
-    const supabaseChannel = supabase
-      .channel('admin-teams-table-listener')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'teams' },
-        () => {
+    // Server-Sent Events (SSE)
+    let sse: EventSource | null = null;
+    if (typeof window !== 'undefined' && 'EventSource' in window) {
+      try {
+        sse = new EventSource('/api/events');
+        const trigger = () => onChange();
+        sse.addEventListener('TEAM_CREATED', trigger);
+        sse.addEventListener('TEAM_UPDATED', trigger);
+        sse.addEventListener('TEAM_DELETED', trigger);
+        sse.addEventListener('SUBMISSION_CREATED', trigger);
+      } catch {
+        // ignore
+      }
+    }
+
+    // Supabase Realtime channel
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('admin-teams-table-listener')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
           onChange();
-        }
-      )
-      .subscribe();
+        })
+        .subscribe();
+    } catch {
+      // ignore
+    }
 
     return () => {
       syncChannel?.removeEventListener('message', handleBroadcast);
       if (typeof window !== 'undefined') {
         window.removeEventListener('scavenger_hunt_local_event', handleCustom);
       }
-      try {
-        supabase.removeChannel(supabaseChannel);
-      } catch {
-        // ignore
+      sse?.close();
+      if (supabaseChannel) {
+        try {
+          supabase.removeChannel(supabaseChannel);
+        } catch {
+          // ignore
+        }
       }
     };
   },
