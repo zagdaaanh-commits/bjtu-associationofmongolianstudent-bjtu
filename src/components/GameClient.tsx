@@ -115,11 +115,9 @@ export default function GameClient() {
   useEffect(() => {
     const savedTeamId = localStorage.getItem('scavenger_team_id');
     if (savedTeamId) {
-      dataService.getTeam(savedTeamId).then((t) => {
+      dataService.getTeam(savedTeamId, true).then((t) => {
         if (t) {
           setTeam(t);
-        } else {
-          localStorage.removeItem('scavenger_team_id');
         }
       });
     }
@@ -388,7 +386,12 @@ export default function GameClient() {
   const handleQRScanned = async (scannedText: string) => {
     if (!activeCheckpoint || !team) return;
 
-    if (scannedText.trim() === activeCheckpoint.qr_token.trim()) {
+    const isValidQr = await dataService.verifyCheckpoint(
+      activeCheckpoint.step_number,
+      scannedText.trim()
+    );
+
+    if (isValidQr) {
       soundFX.playDiscoveryJingle();
       soundFX.playCoin();
       setShowQRScanner(false);
@@ -547,13 +550,13 @@ export default function GameClient() {
 
                 <div className="space-y-2.5 max-h-[36vh] overflow-y-auto pr-1">
                   {PRECONFIGURED_TEAMS.map((ship) => (
-                    <div key={ship.pin_code}>
+                    <div key={ship.name}>
                       <ShipVisual
                         ship={ship}
                         compact={true}
                         size="sm"
                         showPin={false}
-                        selected={pinInput === ship.pin_code}
+                        selected={false}
                       />
                     </div>
                   ))}

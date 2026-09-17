@@ -79,36 +79,19 @@ alter table public.teams enable row level security;
 alter table public.checkpoints enable row level security;
 alter table public.submissions enable row level security;
 
--- Policies for public / anon access for game play & admin
+-- Browser clients must not access game state or secret checkpoint tokens
+-- directly. All reads/writes go through the server API, which uses the
+-- service-role key. The service role bypasses RLS without public policies.
 drop policy if exists "Allow public read teams" on public.teams;
-create policy "Allow public read teams" on public.teams for select using (true);
-
 drop policy if exists "Allow public insert teams" on public.teams;
-create policy "Allow public insert teams" on public.teams for insert with check (true);
-
 drop policy if exists "Allow public update teams" on public.teams;
-create policy "Allow public update teams" on public.teams for update using (true);
-
 drop policy if exists "Allow public delete teams" on public.teams;
-create policy "Allow public delete teams" on public.teams for delete using (true);
-
 drop policy if exists "Allow public read checkpoints" on public.checkpoints;
-create policy "Allow public read checkpoints" on public.checkpoints for select using (true);
-
 drop policy if exists "Allow public insert checkpoints" on public.checkpoints;
-create policy "Allow public insert checkpoints" on public.checkpoints for insert with check (true);
-
 drop policy if exists "Allow public update checkpoints" on public.checkpoints;
-create policy "Allow public update checkpoints" on public.checkpoints for update using (true);
-
 drop policy if exists "Allow public read submissions" on public.submissions;
-create policy "Allow public read submissions" on public.submissions for select using (true);
-
 drop policy if exists "Allow public insert submissions" on public.submissions;
-create policy "Allow public insert submissions" on public.submissions for insert with check (true);
-
 drop policy if exists "Allow public delete submissions" on public.submissions;
-create policy "Allow public delete submissions" on public.submissions for delete using (true);
 
 -- 4. STORAGE BUCKET CONFIGURATION FOR TEAM PHOTOS
 insert into storage.buckets (id, name, public)
@@ -116,9 +99,6 @@ values ('TEAM-PHOTO', 'TEAM-PHOTO', true)
 on conflict (id) do nothing;
 
 drop policy if exists "Allow public uploads to TEAM-PHOTO" on storage.objects;
-create policy "Allow public uploads to TEAM-PHOTO"
-on storage.objects for insert
-with check (bucket_id = 'TEAM-PHOTO');
 
 drop policy if exists "Allow public read of TEAM-PHOTO" on storage.objects;
 create policy "Allow public read of TEAM-PHOTO"
@@ -126,9 +106,6 @@ on storage.objects for select
 using (bucket_id = 'TEAM-PHOTO');
 
 drop policy if exists "Allow public update of TEAM-PHOTO" on storage.objects;
-create policy "Allow public update of TEAM-PHOTO"
-on storage.objects for update
-using (bucket_id = 'TEAM-PHOTO');
 
 -- 5. SEED DATA FOR HAIDIAN PARK (海淀公园) CHECKPOINTS
 -- Clear old seed data if re-running
@@ -143,7 +120,7 @@ values
     'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?auto=format&fit=crop&w=800&q=80',
     39.9922,
     116.2942,
-    'hd_park_alpha_7x',
+    encode(gen_random_bytes(18), 'hex'),
     '学校的校训是什么？',
     '["A. 自强不息，厚德载物", "B. 知行", "C. 实事求是", "D. 博学而笃志"]'::jsonb,
     'B. 知行'
@@ -154,7 +131,7 @@ values
     'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80',
     39.9885,
     116.2940,
-    'hd_park_stage_c2',
+    encode(gen_random_bytes(18), 'hex'),
     'Ньютоны 2-р хуулийн үндсэн томьёо аль нь вэ?',
     '["A. F = m · a", "B. E = m · c²", "C. p = m · v", "D. F = -k · x"]'::jsonb,
     'A. F = m · a'
@@ -165,7 +142,7 @@ values
     'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80',
     39.9868,
     116.2925,
-    'hd_park_rice_j3',
+    encode(gen_random_bytes(18), 'hex'),
     'Бээжингийн Тээврийн Их Сургууль (BJTU) анх хэдэн онд байгуулагдсан бэ?',
     '["A. 1896", "B. 1909", "C. 1921", "D. 1949"]'::jsonb,
     'A. 1896'
@@ -176,7 +153,7 @@ values
     'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
     39.9898,
     116.2965,
-    'hd_park_ai_p4',
+    encode(gen_random_bytes(18), 'hex'),
     'Дараах эртний ганц ханз ямар утгатай вэ?【 囚 】',
     '["A. Шоронд хорих / Хоригдол", "B. Гэртээ амрах", "C. Мод тарих", "D. Хайрцаг онгойлгох"]'::jsonb,
     'A. Шоронд хорих / Хоригдол'
@@ -187,7 +164,7 @@ values
     'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',
     39.9855,
     116.2952,
-    'hd_park_lotus_s5',
+    encode(gen_random_bytes(18), 'hex'),
     'Оюутны виз сунгах, сургуулийн албан ёсны бүртгэл хийлгэхэд олон улсын оюутнууд заавал очдог газар аль нь вэ?',
     '["A. 国际教育学院 (CIE)", "B. 体育馆", "C. 校医院", "D. 保卫处"]'::jsonb,
     'A. 国际教育学院 (CIE)'

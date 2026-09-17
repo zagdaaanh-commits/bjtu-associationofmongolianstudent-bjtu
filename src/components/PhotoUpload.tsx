@@ -110,8 +110,29 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
 
       let publicUrl = '';
 
-      // 1. Try Supabase Storage upload to 'TEAM-PHOTO' bucket first
+      // Upload through our server first so slow/blocked mobile connections do not
+      // have to reach Supabase Storage directly.
       try {
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+        formData.append('teamId', teamId);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 30000);
+        const serverRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+        window.clearTimeout(timeout);
+        const json = await serverRes.json().catch(() => null);
+        if (serverRes.ok && json?.url) publicUrl = json.url;
+        else throw new Error(json?.error || `Upload failed (${serverRes.status})`);
+      } catch (e) {
+        console.warn('Server upload failed, trying direct Supabase upload:', e);
+      }
+
+      // Direct Storage fallback with enough time for slower networks.
+      if (!publicUrl) try {
         const rawExt = fileToUpload.name?.includes('.') ? fileToUpload.name.split('.').pop() : '';
         const fileExt = (rawExt || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
         const fileName = `team_${teamId}_${Date.now()}.${fileExt}`;
@@ -127,7 +148,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
         uploadPromise.catch(() => {});
 
         const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
-          setTimeout(() => reject(new Error('Storage timeout')), 4000)
+          setTimeout(() => reject(new Error('Storage timeout')), 20000)
         );
 
         const { error: storageError, data: uploadData } = (await Promise.race([
@@ -144,29 +165,7 @@ export default function PhotoUpload({ teamId, onPhotoUploaded }: PhotoUploadProp
           }
         }
       } catch (e) {
-        console.warn('Supabase storage upload failed or timed out, trying /api/upload fallback:', e);
-      }
-
-      // 2. Fallback to local Next.js server upload (/api/upload) storing file on disk
-      if (!publicUrl) {
-        try {
-          const formData = new FormData();
-          formData.append('file', fileToUpload);
-          formData.append('teamId', teamId);
-
-          const localRes = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          });
-          if (localRes.ok) {
-            const json = await localRes.json();
-            if (json.url) {
-              publicUrl = json.url;
-            }
-          }
-        } catch (e) {
-          console.warn('Local /api/upload failed:', e);
-        }
+        console.warn('Direct Supabase storage upload failed or timed out:', e);
       }
 
       // Strict requirement: Never store raw base64 data URIs in the database or team records

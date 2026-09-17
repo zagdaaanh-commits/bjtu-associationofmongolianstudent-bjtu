@@ -26,7 +26,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
       'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?auto=format&fit=crop&w=800&q=80',
     lat: 39.9922,
     lng: 116.2942,
-    qr_token: 'hd_park_alpha_7x',
+    qr_token: process.env.CHECKPOINT_QR_TOKEN_1 || '',
     question: '学校的校训是什么？',
     options: [
       'A. 自强不息，厚德载物',
@@ -44,7 +44,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
       'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=800&q=80',
     lat: 39.9885,
     lng: 116.294,
-    qr_token: 'hd_park_stage_c2',
+    qr_token: process.env.CHECKPOINT_QR_TOKEN_2 || '',
     question: 'Ньютоны 2-р хуулийн үндсэн томьёо аль нь вэ?',
     options: [
       'A. F = m · a',
@@ -62,7 +62,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
       'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80',
     lat: 39.9868,
     lng: 116.2925,
-    qr_token: 'hd_park_rice_j3',
+    qr_token: process.env.CHECKPOINT_QR_TOKEN_3 || '',
     question: 'Бээжингийн Тээврийн Их Сургууль (BJTU) анх хэдэн онд байгуулагдсан бэ?',
     options: ['A. 1896', 'B. 1909', 'C. 1921', 'D. 1949'],
     correct_answer: 'A. 1896',
@@ -75,7 +75,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
       'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
     lat: 39.9898,
     lng: 116.2965,
-    qr_token: 'hd_park_ai_p4',
+    qr_token: process.env.CHECKPOINT_QR_TOKEN_4 || '',
     question: 'Дараах эртний ганц ханз ямар утгатай вэ?【 囚 】',
     options: [
       'A. Шоронд хорих / Хоригдол',
@@ -93,7 +93,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
       'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',
     lat: 39.9855,
     lng: 116.2952,
-    qr_token: 'hd_park_lotus_s5',
+    qr_token: process.env.CHECKPOINT_QR_TOKEN_5 || '',
     question:
       'Оюутны виз сунгах, сургуулийн албан ёсны бүртгэл хийлгэхэд олон улсын оюутнууд заавал очдог газар аль нь вэ?',
     options: [
@@ -108,9 +108,9 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
 
 const INITIAL_TEAMS: Team[] = [
   {
-    id: 'team_black_pearl_7701',
+    id: 'team_black_pearl',
     name: 'Хар Сувд',
-    pin_code: '7701',
+    pin_code: process.env.TEAM_PIN_BLACK_PEARL || '',
     current_step: 0,
     status: 'photo_pending',
     initial_photo_url: null,
@@ -119,9 +119,9 @@ const INITIAL_TEAMS: Team[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: 'team_queen_anne_8802',
+    id: 'team_queen_anne',
     name: 'Хатан хааны өшөө авалт',
-    pin_code: '8802',
+    pin_code: process.env.TEAM_PIN_QUEEN_ANNE || '',
     current_step: 0,
     status: 'photo_pending',
     initial_photo_url: null,
@@ -130,9 +130,9 @@ const INITIAL_TEAMS: Team[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: 'team_flying_dutchman_3303',
+    id: 'team_flying_dutchman',
     name: 'Нисдэг Голланд',
-    pin_code: '3303',
+    pin_code: process.env.TEAM_PIN_FLYING_DUTCHMAN || '',
     current_step: 0,
     status: 'photo_pending',
     initial_photo_url: null,
@@ -141,9 +141,9 @@ const INITIAL_TEAMS: Team[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: 'team_golden_hind_9904',
+    id: 'team_golden_hind',
     name: 'Алтан Хинд',
-    pin_code: '9904',
+    pin_code: process.env.TEAM_PIN_GOLDEN_HIND || '',
     current_step: 0,
     status: 'photo_pending',
     initial_photo_url: null,
@@ -152,9 +152,9 @@ const INITIAL_TEAMS: Team[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: 'team_adventure_galley_5505',
+    id: 'team_adventure_galley',
     name: 'Адал явдалт Галеон',
-    pin_code: '5505',
+    pin_code: process.env.TEAM_PIN_ADVENTURE_GALLEY || '',
     current_step: 0,
     status: 'photo_pending',
     initial_photo_url: null,
@@ -368,7 +368,7 @@ class ServerStore {
       updatedTeam = {
         id,
         name: updates.name || 'Баг',
-        pin_code: updates.pin_code || '1234',
+        pin_code: updates.pin_code || '',
         current_step: updates.current_step ?? 0,
         status: updates.status || 'photo_pending',
         initial_photo_url: updates.initial_photo_url ?? null,

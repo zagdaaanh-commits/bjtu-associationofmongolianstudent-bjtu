@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  // Admin Passcode Protection (1896)
+  // Admin passcode is verified server-side and never shipped in the client bundle.
   const [isAdminAuth, setIsAdminAuth] = useState<boolean>(false);
   const [adminPinInput, setAdminPinInput] = useState<string>('');
   const [adminPinError, setAdminPinError] = useState<string | null>(null);
@@ -75,44 +75,37 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // Check stored admin session
+  // Check the HttpOnly server session.
   useEffect(() => {
-    try {
-      const auth = sessionStorage.getItem('scavenger_admin_auth');
-      if (auth === '1896') {
-        setIsAdminAuth(true);
-      }
-    } catch {
-      // ignore
-    }
+    fetch('/api/admin/auth', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { authenticated: false }))
+      .then((data) => setIsAdminAuth(Boolean(data.authenticated)))
+      .catch(() => setIsAdminAuth(false));
   }, []);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     soundFX.playButtonTap();
 
-    if (adminPinInput.trim() === '1896') {
-      try {
-        sessionStorage.setItem('scavenger_admin_auth', '1896');
-      } catch {
-        // ignore
-      }
+    try {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: adminPinInput }),
+      });
+      if (!response.ok) throw new Error('Invalid passcode');
       setIsAdminAuth(true);
       setAdminPinError(null);
       soundFX.playChestOpen();
-    } else {
+    } catch {
       soundFX.playWrong();
-      setAdminPinError('Админ нууц код буруу байна!');
+      setAdminPinError('Админ нууц код буруу эсвэл сервер дээр тохируулагдаагүй байна!');
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
     soundFX.playButtonTap();
-    try {
-      sessionStorage.removeItem('scavenger_admin_auth');
-    } catch {
-      // ignore
-    }
+    await fetch('/api/admin/auth', { method: 'DELETE' }).catch(() => null);
     setIsAdminAuth(false);
     setAdminPinInput('');
   };
@@ -132,22 +125,22 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!isAdminAuth) return;
 
-    const unsubscribeTeams = dataService.subscribeToTeamsChanges(() => {
-      fetchData();
-    });
-
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const unsubscribeAdmin = dataService.subscribeToAdmin(() => {
-      fetchData();
+      // Realtime can deliver related database events together. Debounce them into
+      // one refresh instead of refetching the whole dashboard for every event.
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(fetchData, 250);
     });
 
-    // Fallback sync interval in case remote WebSocket disconnects
+    // Low-frequency fallback in case the realtime socket disconnects.
     const fallbackSync = setInterval(() => {
       fetchData();
-    }, 4000);
+    }, 15000);
 
     return () => {
-      unsubscribeTeams();
       unsubscribeAdmin();
+      if (refreshTimer) clearTimeout(refreshTimer);
       clearInterval(fallbackSync);
     };
   }, [isAdminAuth, fetchData]);
@@ -384,7 +377,7 @@ export default function AdminDashboardPage() {
     setTimeout(() => setCopiedPin(null), 2500);
   };
 
-  // VIEW: ADMIN PASSCODE LOCK SCREEN (CODE: 1896)
+  // VIEW: ADMIN PASSCODE LOCK SCREEN
   if (!isAdminAuth) {
     return (
       <div className="min-h-screen bg-[#140b06] text-[#f6ecda] flex flex-col items-center justify-center p-4 font-sans selection:bg-amber-500 selection:text-black">
@@ -782,12 +775,13 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {PRECONFIGURED_TEAMS.map((shipTeam) => {
                 const liveTeam = teams.find(
-                  (t) => t.pin_code === shipTeam.pin_code || t.name.toLowerCase() === shipTeam.name.toLowerCase()
+                  (t) => t.name.toLowerCase() === shipTeam.name.toLowerCase()
                 );
+                const livePin = liveTeam?.pin_code || '';
 
                 return (
                   <div
-                    key={shipTeam.pin_code}
+                    key={shipTeam.name}
                     className="pirate-panel-wood rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between"
                   >
                     <div className="pirate-corner-rivet top-2 left-2" />
@@ -810,12 +804,13 @@ export default function AdminDashboardPage() {
                         {/* Big 4-digit PIN Box */}
                         <div className="text-right">
                           <button
-                            onClick={() => handleCopyPin(shipTeam.pin_code)}
+                            onClick={() => livePin && handleCopyPin(livePin)}
+                            disabled={!livePin}
                             className="px-3 py-1.5 rounded-xl bg-[#120703] border-2 border-amber-400 hover:border-yellow-300 text-amber-300 font-mono text-base font-black flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform"
                             title="ПИН кодыг хуулах"
                           >
-                            <span>#{shipTeam.pin_code}</span>
-                            {copiedPin === shipTeam.pin_code ? (
+                            <span>{livePin ? `#${livePin}` : 'Тохируулаагүй'}</span>
+                            {livePin && copiedPin === livePin ? (
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
                             ) : (
                               <Copy className="w-3.5 h-3.5 text-amber-400" />
@@ -875,11 +870,12 @@ export default function AdminDashboardPage() {
                     {/* Quick Action Buttons */}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleCopyPin(shipTeam.pin_code)}
+                        onClick={() => livePin && handleCopyPin(livePin)}
+                        disabled={!livePin}
                         className="flex-1 py-2.5 px-3 rounded-xl btn-pirate-gold text-xs font-black flex items-center justify-center gap-1.5"
                       >
                         <Copy className="w-3.5 h-3.5" />
-                        <span>{copiedPin === shipTeam.pin_code ? 'Хуулагдлаа!' : 'Код хуулах'}</span>
+                        <span>{livePin && copiedPin === livePin ? 'Хуулагдлаа!' : 'Код хуулах'}</span>
                       </button>
                       {liveTeam && liveTeam.status !== 'photo_pending' && (
                         <button
