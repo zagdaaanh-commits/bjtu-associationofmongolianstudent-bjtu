@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { serverStore } from '@/lib/serverStore';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { isTeamRequest } from '@/lib/teamAuth';
+import { getSupabaseServerClient } from '@/lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
+
+function db() {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Supabase server client is not configured');
+  return supabase;
+}
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
   }
-  const submissions = serverStore.getSubmissions();
+  const { data: submissions, error } = await db()
+    .from('submissions')
+    .select('*')
+    .order('completed_at', { ascending: false });
+  if (error) throw error;
   return NextResponse.json({ submissions });
 }
 
@@ -29,7 +39,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Team authentication required' }, { status: 401 });
     }
 
-    const sub = serverStore.recordSubmission(team_id, Number(checkpoint_id));
+    const { data: sub, error } = await db()
+      .from('submissions')
+      .upsert(
+        { team_id: String(team_id), checkpoint_id: Number(checkpoint_id) },
+        { onConflict: 'team_id,checkpoint_id' }
+      )
+      .select('*')
+      .single();
+    if (error) throw error;
     return NextResponse.json({ submission: sub });
   } catch (err: unknown) {
     const error = err as Error;
