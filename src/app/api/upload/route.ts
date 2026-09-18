@@ -23,9 +23,9 @@ function safePart(value: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Keep legacy base64 support only for local development/integration tests.
-    // Production must use durable Supabase Storage, never the Vercel filesystem.
-    if (!process.env.VERCEL && request.headers.get('content-type')?.includes('application/json')) {
+    const isJson = request.headers.get('content-type')?.includes('application/json');
+
+    if (isJson) {
       const body = await request.json();
       const raw = body.dataUrl || body.image || body.base64;
       if (typeof raw !== 'string' || !raw.trim()) {
@@ -34,15 +34,39 @@ export async function POST(request: NextRequest) {
       const comma = raw.indexOf(',');
       const base64 = comma >= 0 ? raw.slice(comma + 1) : raw;
       const ext = raw.startsWith('data:image/png') ? 'png' : 'jpg';
+      const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
       const teamId = safePart(String(body.teamId || 'unknown'));
       if (!isAdminRequest(request) && !isTeamRequest(request, teamId)) {
         return NextResponse.json({ error: 'Team authentication required' }, { status: 401 });
       }
+      const bytes = Buffer.from(base64, 'base64');
+      if (bytes.length === 0 || bytes.length > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'Image must be between 1 byte and 2MB' }, { status: 400 });
+      }
       const fileName = `team_${teamId}_${Date.now()}.${ext}`;
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-      fs.mkdirSync(uploadsDir, { recursive: true });
-      fs.writeFileSync(path.join(uploadsDir, fileName), Buffer.from(base64, 'base64'));
-      return NextResponse.json({ url: `/uploads/${fileName}` });
+
+      // Local tests can use the filesystem; production must use durable storage.
+      if (!process.env.VERCEL) {
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        fs.writeFileSync(path.join(uploadsDir, fileName), bytes);
+        return NextResponse.json({ url: `/uploads/${fileName}` });
+      }
+
+      const filePath = `teams/${fileName}`;
+      const supabase = getStorageClient();
+      const { error } = await supabase.storage.from(BUCKET).upload(filePath, bytes, {
+        cacheControl: '3600',
+        contentType,
+        upsert: false,
+      });
+      if (error) {
+        console.error('Supabase base64 upload failed:', { message: error.message, teamId });
+        return NextResponse.json({ error: error.message }, { status: 502 });
+      }
+
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      return NextResponse.json({ url: data.publicUrl });
     }
 
     const formData = await request.formData();
@@ -65,7 +89,10 @@ export async function POST(request: NextRequest) {
       contentType: file.type || 'image/jpeg',
       upsert: false,
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+    if (error) {
+      console.error('Supabase multipart upload failed:', { message: error.message, teamId });
+      return NextResponse.json({ error: error.message }, { status: 502 });
+    }
 
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
     return NextResponse.json({ url: data.publicUrl });
