@@ -24,6 +24,13 @@ export default function QRScanner({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
   const hasTriggeredRef = useRef(false);
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+    onCloseRef.current = onClose;
+  }, [onScanSuccess, onClose]);
 
   useEffect(() => {
     let mounted = true;
@@ -88,7 +95,7 @@ export default function QRScanner({
             }
 
             soundFX.playCoin();
-            onScanSuccess(decodedText.trim());
+            onScanSuccessRef.current(decodedText.trim());
           },
           () => {
             // Frame with no QR
@@ -115,15 +122,22 @@ export default function QRScanner({
 
     return () => {
       mounted = false;
-      if (scannerRef.current && isScanningRef.current) {
+      if (html5QrCode && isScanningRef.current) {
         isScanningRef.current = false;
-        scannerRef.current
+        html5QrCode
           .stop()
-          .then(() => scannerRef.current?.clear())
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => {
+            try {
+              html5QrCode?.clear();
+            } catch {
+              // The reader element may already be gone during an iOS page transition.
+            }
+          });
       }
+      if (scannerRef.current === html5QrCode) scannerRef.current = null;
     };
-  }, [onScanSuccess]);
+  }, []);
 
   const switchCamera = async () => {
     if (!scannerRef.current || cameras.length <= 1) return;
@@ -157,7 +171,7 @@ export default function QRScanner({
             scannerRef.current.stop().catch(() => {});
           }
           soundFX.playCoin();
-          onScanSuccess(decodedText.trim());
+          onScanSuccessRef.current(decodedText.trim());
         },
         () => {}
       );
@@ -177,7 +191,7 @@ export default function QRScanner({
       scannerRef.current.stop().catch(() => {});
     }
     soundFX.playCoin();
-    onScanSuccess(manualCode.trim());
+    onScanSuccessRef.current(manualCode.trim());
   };
 
   return (
@@ -199,7 +213,7 @@ export default function QRScanner({
               isScanningRef.current = false;
               scannerRef.current.stop().catch(() => {});
             }
-            onClose();
+            onCloseRef.current();
           }}
           className="w-9 h-9 rounded-xl btn-pirate-wood text-amber-200 flex items-center justify-center"
           title="Хаах"
