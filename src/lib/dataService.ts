@@ -280,6 +280,21 @@ export const dataService = {
     // Restore the player's last known team immediately. Realtime and polling
     // refresh it afterward, so a temporary network outage never logs them out.
     const cached = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []).find((t) => t.id === id);
+    // Old deployments stored team_<timestamp> IDs. Never send those to a UUID
+    // column or restore them as a working session. Reauthenticate by the PIN
+    // already entered by this player; the server alone resolves the new ID.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      const pin = cached?.pin_code?.trim();
+      const migrated = pin ? await this.loginByPin(pin) : null;
+      if (migrated) {
+        localStorage.setItem('scavenger_team_id', migrated.id);
+        const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
+        setLocal(STORAGE_KEYS.TEAMS, current.filter((t) => t.id !== id));
+        return migrated;
+      }
+      localStorage.removeItem('scavenger_team_id');
+      return null;
+    }
     if (preferCache && cached) return cached;
 
     const apiRes = await apiFetch<{ team: Team }>(`/api/teams?id=${id}`);
@@ -340,12 +355,8 @@ export const dataService = {
       return apiRes.team;
     }
 
-    // 3. Check the local session cache. Production PINs are never embedded in
-    // the client bundle; they must be resolved by Supabase or the server API.
-    const current = getLocal<Team[]>(STORAGE_KEYS.TEAMS, []);
-    const local = current.find((t) => t.pin_code === trimmedPin);
-    if (local) return local;
-
+    // A cached PIN match cannot establish the server's HttpOnly session.
+    // Never report a successful login when the server did not authenticate it.
     return null;
   },
 
