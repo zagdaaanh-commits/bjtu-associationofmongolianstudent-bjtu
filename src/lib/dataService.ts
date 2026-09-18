@@ -96,6 +96,14 @@ export interface PreconfiguredTeam {
 
 export const PRECONFIGURED_TEAMS: PreconfiguredTeam[] = [
   {
+    name: 'Далайн харцага',
+    pin_code: '',
+    ship_name: 'Далайн харцага (Sea Falcon)',
+    ship_image: '/ships/ship_adventure_galley.jpg',
+    theme_color: '#fb923c',
+    description: 'Давалгааг сүлжин нисэх мэт хурдтай эрэлчдийн хөлөг',
+  },
+  {
     name: 'Хар Сувд',
     pin_code: '',
     ship_name: 'Хар Сувд (Black Pearl)',
@@ -134,6 +142,38 @@ export const PRECONFIGURED_TEAMS: PreconfiguredTeam[] = [
     ship_image: '/ships/ship_adventure_galley.jpg',
     theme_color: '#38bdf8',
     description: 'Далай тэнгисийн зоригт эрэлчдийн дархан хөлөг',
+  },
+  {
+    name: 'Тэнгисийн Луу',
+    pin_code: '',
+    ship_name: 'Тэнгисийн Луу (Sea Dragon)',
+    ship_image: '/ships/ship_flying_dutchman.jpg',
+    theme_color: '#06b6d4',
+    description: 'Хөх дөл, луугийн хүчийг тээсэн сүрлэг дайчин хөлөг',
+  },
+  {
+    name: 'Чимээгүй Салхи',
+    pin_code: '',
+    ship_name: 'Чимээгүй Салхи (Silent Wind)',
+    ship_image: '/ships/ship_queen_anne.jpg',
+    theme_color: '#a855f7',
+    description: 'Шөнийн мананд чимээгүйхэн урагшлах нууцлаг хөлөг',
+  },
+  {
+    name: 'Мөнгөн Давалгаа',
+    pin_code: '',
+    ship_name: 'Мөнгөн Давалгаа (Silver Wave)',
+    ship_image: '/ships/ship_golden_hind.jpg',
+    theme_color: '#94a3b8',
+    description: 'Сарны гэрэлд мөнгөрөн гялалзах хурдан галеон',
+  },
+  {
+    name: 'Шуурганы Элч',
+    pin_code: '',
+    ship_name: 'Шуурганы Элч (Storm Herald)',
+    ship_image: '/ships/ship_black_pearl.jpg',
+    theme_color: '#6366f1',
+    description: 'Аянга цахилгаан, догшин шуургыг захирах хар хөлөг',
   },
 ];
 
