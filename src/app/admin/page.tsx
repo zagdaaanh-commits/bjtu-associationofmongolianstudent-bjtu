@@ -501,7 +501,7 @@ export default function AdminDashboardPage() {
                   : 'text-[#deb887] hover:text-white font-cinzel'
               }`}
             >
-              5 Хөлөг & Кодууд
+              10 Хөлөг & Кодууд
             </button>
             <button
               onClick={() => {
@@ -733,7 +733,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: PRE-CONFIGURED 5 PIRATE SHIPS & PIN CODES */}
+        {/* TAB 2: PRE-CONFIGURED PIRATE SHIPS & PIN CODES */}
         {activeTab === 'ships' && (
           <div className="space-y-6">
             <div className="pirate-panel-wood rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-wrap items-center justify-between gap-4">
@@ -745,7 +745,7 @@ export default function AdminDashboardPage() {
               <div>
                 <h2 className="text-lg font-black text-amber-300 flex items-center gap-2 font-cinzel">
                   <Anchor className="w-5 h-5 text-amber-400" />
-                  Бэлтгэсэн 5 багийн хөлөг онгоц ба нэвтрэх кодууд
+                  Бэлтгэсэн {PRECONFIGURED_TEAMS.length} багийн хөлөг онгоц ба нэвтрэх кодууд
                 </h2>
                 <p className="text-xs text-[#deb887] mt-1 font-sans">
                   Зохион байгуулагчид эдгээр 4 оронтой ПИН кодыг багуудад тарааж өгнө үү. Багууд энэ кодоор шууд нэвтэрнэ!
@@ -760,18 +760,18 @@ export default function AdminDashboardPage() {
                   soundFX.playCoin();
                   setFeedbackMsg({
                     type: 'success',
-                    text: '5 дээрэмчин хөлөг онгоцны багууд амжилттай баталгаажлаа!',
+                    text: `${PRECONFIGURED_TEAMS.length} дээрэмчин хөлөг онгоцны багууд амжилттай баталгаажлаа!`,
                   });
                   setTimeout(() => setFeedbackMsg(null), 3500);
                 }}
                 className="py-2.5 px-4 rounded-xl btn-pirate-gold text-xs font-black flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Бүх 5 хөлгийг сэргээх / Pre-seed</span>
+                <span>Бүх {PRECONFIGURED_TEAMS.length} хөлгийг сэргээх / Pre-seed</span>
               </button>
             </div>
 
-            {/* 5 Ships Cards Grid */}
+            {/* Pirate ship cards grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {PRECONFIGURED_TEAMS.map((shipTeam) => {
                 const liveTeam = teams.find(
