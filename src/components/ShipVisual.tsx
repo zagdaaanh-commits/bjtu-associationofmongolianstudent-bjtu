@@ -28,6 +28,10 @@ export default function ShipVisual({
   else if (ship.name.includes('Голланд')) glowClass = 'ship-glow-dutchman';
   else if (ship.name.includes('Алтан')) glowClass = 'ship-glow-hind';
   else if (ship.name.includes('Галеон')) glowClass = 'ship-glow-galley';
+  else if (ship.name.includes('Тэнгисийн')) glowClass = 'ship-glow-dutchman';
+  else if (ship.name.includes('Чимээгүй')) glowClass = 'ship-glow-anne';
+  else if (ship.name.includes('Мөнгөн')) glowClass = 'ship-glow-hind';
+  else if (ship.name.includes('Шуурганы')) glowClass = 'ship-glow-galley';
 
   const sizeClass =
     size === 'sm' ? 'aspect-[4/3] h-32' : size === 'lg' ? 'aspect-[4/3] h-52' : 'aspect-[4/3] h-40';
