@@ -432,7 +432,7 @@ export default function GameClient() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-md mx-auto w-full bg-[#180e07] text-[#f6ecda] shadow-2xl relative border-x-2 border-[#452712]">
-      {/* 1. ONBOARDING SCREEN (PIN CODE & 5 PIRATE SHIPS) */}
+      {/* 1. ONBOARDING SCREEN (PIN CODE & PIRATE SHIPS) */}
       {!team && (
         <div className="flex-1 flex flex-col justify-center px-4 py-8">
           <div className="text-center mb-6">
@@ -483,7 +483,7 @@ export default function GameClient() {
             </button>
           </div>
 
-          {/* TAB 1: PIN CODE DIRECT LOGIN & 5 PRE-CONFIGURED 3D SHIPS */}
+          {/* TAB 1: PIN CODE DIRECT LOGIN & PRE-CONFIGURED 3D SHIPS */}
           {authTab === 'pin' && (
             <div className="space-y-4">
               <div className="pirate-panel-wood rounded-3xl p-5 shadow-2xl relative">
@@ -538,12 +538,12 @@ export default function GameClient() {
                 </form>
               </div>
 
-              {/* 5 Preconfigured 3D Ships Selector */}
+              {/* Preconfigured 3D Ships Selector */}
               <div>
                 <div className="flex items-center justify-between mb-2 px-1">
                   <span className="text-xs font-black text-amber-300 flex items-center gap-1.5 font-cinzel">
                     <Anchor className="w-3.5 h-3.5 text-amber-400" />
-                    Уралдаанд оролцох 5 дээрэмчин хөлөг:
+                    Уралдаанд оролцох {PRECONFIGURED_TEAMS.length} дээрэмчин хөлөг:
                   </span>
                   <span className="text-[10px] text-[#deb887]">Админаас кодоо авна уу</span>
                 </div>
