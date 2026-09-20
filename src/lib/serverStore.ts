@@ -21,11 +21,11 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: 1,
     step_number: 1,
-    title: 'Сургуулийн уриа (North Gate Plaza)',
+    title: '未来空间',
     hint_image_url:
       'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?auto=format&fit=crop&w=800&q=80',
-    lat: 39.9922,
-    lng: 116.2942,
+    lat: 39.98678416,
+    lng: 116.29554885,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_1 || '',
     question: '学校的校训是什么？',
     options: [
@@ -39,10 +39,10 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: 2,
     step_number: 2,
-    title: 'Физикийн хууль (Central Lawn)',
+    title: '海淀公园百姓周末大舞台',
     hint_image_url:
       'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=800&q=80',
-    lat: 39.9885,
+    lat: 39.98602264,
     lng: 116.294,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_2 || '',
     question: 'Ньютоны 2-р хуулийн үндсэн томьёо аль нь вэ?',
@@ -57,11 +57,11 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: 3,
     step_number: 3,
-    title: 'Сургуулийн түүх (Jingxi Rice Field)',
+    title: '海淀公园-儿童乐园',
     hint_image_url:
       'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80',
-    lat: 39.9868,
-    lng: 116.2925,
+    lat: 39.98645493,
+    lng: 116.29768152,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_3 || '',
     question: 'Бээжингийн Тээврийн Их Сургууль (BJTU) анх хэдэн онд байгуулагдсан бэ?',
     options: ['A. 1896', 'B. 1909', 'C. 1921', 'D. 1949'],
@@ -70,11 +70,11 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: 4,
     step_number: 4,
-    title: 'Эртний ханзны оньсого (AI Smart Pavilion)',
+    title: '淀园花谷',
     hint_image_url:
       'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-    lat: 39.9898,
-    lng: 116.2965,
+    lat: 39.98767611,
+    lng: 116.29792671,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_4 || '',
     question: 'Дараах эртний ганц ханз ямар утгатай вэ?【 囚 】',
     options: [
@@ -88,11 +88,11 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: 5,
     step_number: 5,
-    title: 'Олон улсын оюутны бүртгэл & Виз (South Lotus Pond)',
+    title: '海淀公园-中心草坪',
     hint_image_url:
       'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',
-    lat: 39.9855,
-    lng: 116.2952,
+    lat: 39.98738521,
+    lng: 116.29586933,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_5 || '',
     question:
       'Оюутны виз сунгах, сургуулийн албан ёсны бүртгэл хийлгэхэд олон улсын оюутнууд заавал очдог газар аль нь вэ?',
