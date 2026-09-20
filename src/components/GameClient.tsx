@@ -230,17 +230,30 @@ export default function GameClient() {
       if (typeof iosHeading === 'number' && !isNaN(iosHeading)) {
         setDeviceHeading(Math.round(iosHeading));
       } else if (typeof e.alpha === 'number' && !isNaN(e.alpha)) {
-        setDeviceHeading(Math.round((360 - e.alpha) % 360));
+        const legacyOrientation =
+          (window as unknown as { orientation?: number }).orientation ?? 0;
+        const screenAngle = window.screen.orientation?.angle ?? legacyOrientation;
+        setDeviceHeading(Math.round((360 - e.alpha + screenAngle + 360) % 360));
       }
     };
 
     if ('DeviceOrientationEvent' in window) {
       window.addEventListener('deviceorientation', handleOrientation, true);
+      window.addEventListener(
+        'deviceorientationabsolute',
+        handleOrientation as EventListener,
+        true
+      );
     }
 
     if (!('geolocation' in navigator) || team?.status !== 'in_progress') {
       return () => {
         window.removeEventListener('deviceorientation', handleOrientation, true);
+        window.removeEventListener(
+          'deviceorientationabsolute',
+          handleOrientation as EventListener,
+          true
+        );
       };
     }
 
@@ -271,6 +284,11 @@ export default function GameClient() {
     return () => {
       navigator.geolocation.clearWatch(watchId);
       window.removeEventListener('deviceorientation', handleOrientation, true);
+      window.removeEventListener(
+        'deviceorientationabsolute',
+        handleOrientation as EventListener,
+        true
+      );
     };
   }, [team?.status]);
 
@@ -284,7 +302,14 @@ export default function GameClient() {
     ) {
       (DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> })
         .requestPermission()
-        .catch(() => {});
+        .then((state) => {
+          if (state !== 'granted') {
+            setLocationMessage('Компас ашиглах зөвшөөрөл хаалттай байна. Motion & Orientation Access-ийг зөвшөөрнө үү.');
+          }
+        })
+        .catch(() => {
+          setLocationMessage('Компас ажиллахгүй байна. Safari-ийн Motion & Orientation Access-ийг зөвшөөрнө үү.');
+        });
     }
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -813,7 +838,7 @@ export default function GameClient() {
                         ? {
                             lat: userLocation.lat,
                             lng: userLocation.lng,
-                            heading: userLocation.heading ?? deviceHeading,
+                            heading: deviceHeading ?? userLocation.heading,
                             accuracy: userLocation.accuracy,
                             speed: userLocation.speed,
                           }
