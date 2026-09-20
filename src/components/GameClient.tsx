@@ -828,7 +828,7 @@ export default function GameClient() {
                   {locationMessage && <p role="status" className="text-xs text-amber-200 p-2">{locationMessage}</p>}
                   <details className="rounded-xl border border-amber-700 bg-[#271409] p-3 text-sm">
                     <summary className="cursor-pointer font-bold text-amber-200">5 газрын дараалал · 百度地图</summary>
-                    <p className="my-2 text-xs text-amber-200">Газрын нэр дээр дарж зохион байгуулагчийн өгсөн байршлыг нээнэ үү. Сайтын газрын зураг дээрх тэмдэглэгээнүүд хараахан шинэчлэгдээгүй тул эдгээр холбоосыг ашиглаарай.</p>
+                    <p className="my-2 text-xs text-amber-200">Газрын нэр дээр дарж зохион байгуулагчийн өгсөн байршлыг нээнэ үү. Газрын зураг дээрх 1–5-р тэмдэглэгээ шинэчлэгдсэн. Нэр дээр дарж Baidu Maps дахь байршлыг нээнэ үү.</p>
                     <ol className="space-y-2">
                       {PARK_DESTINATIONS.map(({ name, url }, index) => (
                         <li key={name}>
