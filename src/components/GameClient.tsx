@@ -47,6 +47,14 @@ import {
   Check,
 } from 'lucide-react';
 
+const PARK_DESTINATIONS = [
+  '未来空间',
+  '海淀公园百姓周末大舞台',
+  '海淀公园-儿童乐园',
+  '淀园花谷',
+  '海淀公园-中心草坪',
+];
+
 export default function GameClient() {
   // Authentication & Session
   const [team, setTeam] = useState<Team | null>(null);
@@ -81,6 +89,13 @@ export default function GameClient() {
     speed?: number | null;
   } | null>(null);
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+
+  const handleLocationError = (err: GeolocationPositionError) => {
+    setLocationMessage(err.code === 1
+      ? 'Байршлын зөвшөөрөл хаалттай байна. Safari-ийн сайтын тохиргооноос Location → Allow сонгоно уу.'
+      : 'GPS байршил олдсонгүй. Ил задгай газар очоод Миний байршил товчийг дахин дарна уу.');
+  };
 
   // Initialize sound mute state
   useEffect(() => {
@@ -231,6 +246,7 @@ export default function GameClient() {
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        setLocationMessage(null);
         setUserLocation((prev) => ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
@@ -243,7 +259,7 @@ export default function GameClient() {
         }));
       },
       (err) => {
-        console.warn('Real-time geolocation watch warning:', err.message);
+        handleLocationError(err);
       },
       {
         enableHighAccuracy: true,
@@ -260,32 +276,20 @@ export default function GameClient() {
 
   const handleLocateUser = () => {
     soundFX.playButtonTap();
+    setLocationMessage('Байршил тодорхойлж байна…');
     if (
-      typeof window !== 'undefined' &&
+      typeof window !== 'undefined' && 'DeviceOrientationEvent' in window &&
       typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
         ?.requestPermission === 'function'
     ) {
       (DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> })
         .requestPermission()
-        .then((state) => {
-          if (state === 'granted') {
-            window.addEventListener(
-              'deviceorientation',
-              (e: DeviceOrientationEvent) => {
-                const iosHeading = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
-                if (typeof iosHeading === 'number' && !isNaN(iosHeading)) {
-                  setDeviceHeading(Math.round(iosHeading));
-                }
-              },
-              true
-            );
-          }
-        })
         .catch(() => {});
     }
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          setLocationMessage(null);
           setUserLocation({
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
@@ -299,10 +303,12 @@ export default function GameClient() {
           soundFX.playCoin();
         },
         (err) => {
-          console.warn('Geolocation error:', err.message);
+          handleLocationError(err);
         },
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
+    } else {
+      setLocationMessage('Энэ хөтөч байршил тодорхойлох боломжгүй байна. Safari эсвэл Chrome ашиглана уу.');
     }
   };
 
@@ -312,7 +318,7 @@ export default function GameClient() {
     soundFX.playButtonTap();
 
     if (
-      typeof window !== 'undefined' &&
+      typeof window !== 'undefined' && 'DeviceOrientationEvent' in window &&
       typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
         ?.requestPermission === 'function'
     ) {
@@ -819,6 +825,21 @@ export default function GameClient() {
 
                 {/* 2. Visual Hint & Clue Card */}
                 <div className="flex-1 px-3 pb-3 overflow-y-auto space-y-2.5">
+                  {locationMessage && <p role="status" className="text-xs text-amber-200 p-2">{locationMessage}</p>}
+                  <details className="rounded-xl border border-amber-700 bg-[#271409] p-3 text-sm">
+                    <summary className="cursor-pointer font-bold text-amber-200">5 газрын дараалал · 高德地图</summary>
+                    <p className="my-2 text-xs text-amber-200">Газрын нэр дээр дарж 高德地图 дээр хайна уу. Сайтын цэгүүдийн шинэ координат хараахан баталгаажаагүй.</p>
+                    <ol className="space-y-2">
+                      {PARK_DESTINATIONS.map((name, index) => (
+                        <li key={name}>
+                          <a target="_blank" rel="noopener noreferrer" className="block rounded-lg p-2 text-amber-200 underline"
+                            href={`https://uri.amap.com/search?keyword=${encodeURIComponent(name.startsWith('海淀公园') ? name : `海淀公园 ${name}`)}&city=110000&view=map&src=bjtu-scavenger&callnative=1`}>
+                            {index + 1}. {name} ↗
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                   <div className="pirate-panel-parchment rounded-3xl p-4 shadow-xl relative overflow-hidden">
                     <div className="pirate-corner-rivet top-2 left-2" />
                     <div className="pirate-corner-rivet top-2 right-2" />
