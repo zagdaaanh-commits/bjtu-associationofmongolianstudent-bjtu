@@ -43,7 +43,7 @@ const INITIAL_CHECKPOINTS: Checkpoint[] = [
     hint_image_url:
       'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=800&q=80',
     lat: 39.98602264,
-    lng: 116.294,
+    lng: 116.29622575,
     qr_token: process.env.CHECKPOINT_QR_TOKEN_2 || '',
     question: 'Ньютоны 2-р хуулийн үндсэн томьёо аль нь вэ?',
     options: [
