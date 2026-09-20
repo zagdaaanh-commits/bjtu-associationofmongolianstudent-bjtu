@@ -177,6 +177,7 @@ export default function ScavengerMap({
   // Tile layer: 'gaode' (China AutoNavi vector), 'gaode_sat' (satellite), 'osm' (OpenStreetMap)
   const [tileLayerType, setTileLayerType] = useState<TileLayerType>('gaode');
   const [showLayerMenu, setShowLayerMenu] = useState(false);
+  const [followUser, setFollowUser] = useState(false);
 
   const isGcj = tileLayerType.startsWith('gaode');
 
@@ -292,6 +293,7 @@ export default function ScavengerMap({
 
   // Fit bounds showing both user and target checkpoint
   const handleFitBounds = () => {
+    setFollowUser(false);
     soundFX.playButtonTap();
     if (renderUserPos && renderCheckpoint) {
       setMapBounds([
@@ -304,7 +306,15 @@ export default function ScavengerMap({
     }
   };
 
+  useEffect(() => {
+    if (followUser && renderUserPos) {
+      setMapBounds(null);
+      setMapTarget([renderUserPos.lat, renderUserPos.lng]);
+    }
+  }, [followUser, renderUserPos?.lat, renderUserPos?.lng]);
+
   const handleCenterUser = () => {
+    setFollowUser(true);
     soundFX.playButtonTap();
     if (onLocateUser) onLocateUser();
     if (renderUserPos) {
@@ -314,6 +324,7 @@ export default function ScavengerMap({
   };
 
   const handleCenterCheckpoint = () => {
+    setFollowUser(false);
     soundFX.playButtonTap();
     if (renderCheckpoint) {
       setMapBounds(null);
@@ -322,6 +333,7 @@ export default function ScavengerMap({
   };
 
   const handleCenterPark = () => {
+    setFollowUser(false);
     soundFX.playButtonTap();
     setMapBounds(null);
     setMapTarget([parkCenter.lat, parkCenter.lng]);
@@ -409,7 +421,7 @@ export default function ScavengerMap({
         {renderUserPos && userPosition?.accuracy && userPosition.accuracy > 0 && (
           <Circle
             center={[renderUserPos.lat, renderUserPos.lng]}
-            radius={Math.min(userPosition.accuracy, 40)}
+            radius={userPosition.accuracy}
             pathOptions={{
               color: '#0284c7',
               fillColor: '#38bdf8',
@@ -675,10 +687,11 @@ export default function ScavengerMap({
         )}
 
         {/* Focus on Player Skull */}
-        {renderUserPos && (
+        {onLocateUser && (
           <button
             onClick={handleCenterUser}
-            title="Ахмад таны байршил"
+            title="Миний байршил"
+            aria-label="Миний байршил"
             className="w-9 h-9 rounded-xl btn-pirate-wood flex items-center justify-center text-sky-400 shadow-md"
           >
             <Navigation className="w-4 h-4" />
