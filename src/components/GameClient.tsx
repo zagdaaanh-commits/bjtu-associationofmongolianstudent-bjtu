@@ -48,11 +48,11 @@ import {
 } from 'lucide-react';
 
 const PARK_DESTINATIONS = [
-  '未来空间',
-  '海淀公园百姓周末大舞台',
-  '海淀公园-儿童乐园',
-  '淀园花谷',
-  '海淀公园-中心草坪',
+  { name: '未来空间', url: 'https://j.map.baidu.com/4f/ZVwJ' },
+  { name: '海淀公园百姓周末大舞台', url: 'https://j.map.baidu.com/c1/cFn' },
+  { name: '海淀公园-儿童乐园', url: 'https://j.map.baidu.com/d5/c74' },
+  { name: '淀园花谷', url: 'https://j.map.baidu.com/a9/aqx' },
+  { name: '海淀公园-中心草坪', url: 'https://j.map.baidu.com/29/TV0' },
 ];
 
 export default function GameClient() {
@@ -827,13 +827,13 @@ export default function GameClient() {
                 <div className="flex-1 px-3 pb-3 overflow-y-auto space-y-2.5">
                   {locationMessage && <p role="status" className="text-xs text-amber-200 p-2">{locationMessage}</p>}
                   <details className="rounded-xl border border-amber-700 bg-[#271409] p-3 text-sm">
-                    <summary className="cursor-pointer font-bold text-amber-200">5 газрын дараалал · 高德地图</summary>
-                    <p className="my-2 text-xs text-amber-200">Газрын нэр дээр дарж 高德地图 дээр хайна уу. Сайтын цэгүүдийн шинэ координат хараахан баталгаажаагүй.</p>
+                    <summary className="cursor-pointer font-bold text-amber-200">5 газрын дараалал · 百度地图</summary>
+                    <p className="my-2 text-xs text-amber-200">Газрын нэр дээр дарж зохион байгуулагчийн өгсөн байршлыг нээнэ үү. Сайтын газрын зураг дээрх тэмдэглэгээнүүд хараахан шинэчлэгдээгүй тул эдгээр холбоосыг ашиглаарай.</p>
                     <ol className="space-y-2">
-                      {PARK_DESTINATIONS.map((name, index) => (
+                      {PARK_DESTINATIONS.map(({ name, url }, index) => (
                         <li key={name}>
                           <a target="_blank" rel="noopener noreferrer" className="block rounded-lg p-2 text-amber-200 underline"
-                            href={`https://uri.amap.com/search?keyword=${encodeURIComponent(name.startsWith('海淀公园') ? name : `海淀公园 ${name}`)}&city=110000&view=map&src=bjtu-scavenger&callnative=1`}>
+                            href={url}>
                             {index + 1}. {name} ↗
                           </a>
                         </li>
